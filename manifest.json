@@ -1,0 +1,17 @@
+{
+  "name": "Asesmen Game",
+  "short_name": "Asesmen",
+  "description": "Asesmen berbasis game. Design by Akhmad Fitra Harry, S.Pd",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e6f7ff",
+  "theme_color": "#0d9488",
+  "lang": "id",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

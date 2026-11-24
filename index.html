@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asesmen Berbasis Game</title>
+<meta name="color-scheme" content="light">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d9488">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Asesmen">
+<style>
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#e6f7ff;--card:#ffffff;--tx:#16324f;--ac:#0d9488;--ok:#16a34a;--no:#dc2626;--in:#eef8fb;--bd:#cfe6ee}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:linear-gradient(180deg,#dff5ff 0%,#fff8dc 100%) fixed;color:var(--tx);font-family:"Trebuchet MS",system-ui,sans-serif;display:flex;justify-content:center}
+#app{width:100%;max-width:420px;padding:10px}
+.bar{display:flex;justify-content:space-between;font-weight:700;font-size:13px;margin-bottom:6px}
+.q{background:var(--card);border:3px solid var(--ac);border-radius:14px;padding:10px;font-weight:700;font-size:15px;margin-bottom:6px}
+.o{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;font-size:13px}
+.o div{background:var(--card);border-radius:8px;padding:5px 7px;border-left:6px solid}
+canvas{width:100%;display:block;border:3px solid var(--ac);border-radius:14px;image-rendering:pixelated;touch-action:none;background:#f3e3c0}
+.msg{min-height:22px;text-align:center;font-weight:700;margin:6px 0}
+.dp{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,52px);gap:5px;justify-content:center}
+.dp button{font-size:22px;border:0;border-radius:12px;background:var(--ac);color:#fff;touch-action:none}
+.cr{text-align:center;font-size:12px;opacity:.75;margin-top:10px}
+.ov{position:fixed;inset:0;background:linear-gradient(160deg,#bdeeff 0%,#fff3b0 60%,#ffd6e7 100%);display:flex;align-items:flex-start;justify-content:center;padding:12px;z-index:5;overflow:auto}
+.ov>div{background:var(--card);border:4px solid var(--ac);border-radius:20px;padding:16px;width:100%;max-width:420px;margin:auto;box-shadow:0 10px 0 rgba(13,148,136,.22)}
+.ov h1{margin:0 0 4px;font-size:23px;text-align:center;color:#0b6e8a}
+.sub{text-align:center;font-size:12px;opacity:.8;margin-bottom:8px}.sub.l{text-align:left;margin:3px 0}
+.ov label{display:block;font-size:12px;font-weight:700;margin:8px 0 2px}
+.ov input,.ov textarea,.ov select{width:100%;font:inherit;font-size:16px;padding:8px 10px;border:2px solid var(--bd);border-radius:12px;background:var(--in);color:var(--tx);margin-top:4px}
+.ov textarea{font-size:13px;min-height:110px}
+.ov button{padding:10px 18px;font-size:15px;font-weight:700;border:0;border-radius:12px;background:var(--ac);color:#fff;margin-top:10px;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+.ov button.s{background:var(--card);color:var(--tx);border:2px solid var(--bd);box-shadow:0 4px 0 var(--bd)}
+.ov button.m{padding:7px 11px;font-size:13px;margin:6px 4px 0 0}
+.err{color:var(--no);font-weight:700;font-size:13px;margin-top:6px;text-align:center}
+.ctr{text-align:center}
+.card{border:2px solid var(--bd);border-radius:14px;padding:12px;margin-top:12px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pill{font-size:12px;padding:3px 10px;border-radius:99px;background:#d9f2ee;color:#0f766e;font-weight:700}.pill.x{background:#fde4e4;color:#b42323}
+.it{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:13px;border-bottom:1px solid var(--bd);padding:6px 0}
+details{margin-top:10px;background:var(--in);border-radius:10px;padding:8px}summary{font-weight:700;font-size:13px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.g2 button{margin-top:0!important}
+.tw{overflow-x:auto;border:2px solid var(--bd);border-radius:14px;margin-top:12px}
+table{border-collapse:collapse;width:100%;font-size:13px}th{background:var(--in);font-size:11px;letter-spacing:.5px;text-align:left;padding:9px;white-space:nowrap}td{padding:9px;border-top:1px solid var(--bd);white-space:nowrap}
+.ov button.o{background:#c2410c}.zona{border-color:rgba(217,54,54,.4);background:rgba(217,54,54,.07)}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.hd h1{flex:1;margin:0;font-size:20px}.hd button{margin:0!important}
+.badge{background:var(--ac);color:#fff;border-radius:9px;min-width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.drop{border:3px dashed var(--ac);border-radius:18px;padding:22px 14px;text-align:center;background:var(--in);cursor:pointer}
+pre{font-size:12px;white-space:pre-wrap;background:var(--in);padding:8px;border-radius:8px}
+.pj{background:#fff8dc;border:2px solid #fbbf24;border-radius:12px;padding:10px;font-size:13px;margin:6px 0}.pj button{margin-top:8px;padding:8px 18px;border:0;border-radius:10px;background:var(--ac);color:#fff;font-weight:700}
+tr.clk{cursor:pointer}.st-t{color:#15803d;font-weight:700}.st-r{color:#c2410c;font-weight:700}
+</style></head><body>
+<div id="app">
+<div id="pvb" style="display:none;justify-content:space-between;align-items:center;background:#fde68a;color:#5b4300;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700;margin-bottom:6px">👁 Pratinjau: jawaban tidak disimpan <button onclick="endPV()" style="border:0;border-radius:8px;padding:4px 10px;font-weight:700">Keluar</button></div>
+<div class="bar"><span id="no">Lv 1</span><span id="lf"></span><span id="tm"></span><span id="sc">Skor: 0</span></div>
+<div class="q" id="q">Memuat...</div>
+<div class="o" id="o"></div>
+<canvas id="c" width="320" height="300"></canvas>
+<div class="msg" id="m"></div>
+<div id="pj" class="pj" style="display:none"></div>
+<div class="dp">
+<span></span><button data-d="u">▲</button><span></span>
+<button data-d="l">◀</button><button data-d="d">▼</button><button data-d="r">▶</button>
+</div>
+<div class="cr">Design by Akhmad Fitra Harry, S.Pd</div>
+</div>
+<div class="ov" id="ov"><div id="ovc"></div></div>
+<script src="config.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const COL=["#e8554e","#3b82f6","#f2b705","#2fb86b"],LET="ABCD";
+const CF=window.CFG||{};let tok=null;
+/* ===== Supabase (REST) ===== */
+async function api(p,o={}){
+ if(!CF.URL||/XXXX/.test(CF.URL))throw new Error("config.js belum diisi (URL dan KEY Supabase).");
+ const r=await fetch(CF.URL+p,{...o,headers:{apikey:CF.KEY,...((tok||/^eyJ/.test(CF.KEY))?{Authorization:"Bearer "+(tok||CF.KEY)}:{}),"Content-Type":"application/json",...(o.headers||{})}});
+ const t=await r.text();let j=null;try{j=t?JSON.parse(t):null;}catch(e){}
+ if(!r.ok)throw new Error((j&&(j.message||j.msg||j.error_description))||"Gagal ("+r.status+")");
+ return j;
+}
+const rpc=(f,a)=>api("/rest/v1/rpc/"+f,{method:"POST",body:JSON.stringify(a)});
+const db={sel:(t,q)=>api("/rest/v1/"+t+"?"+q),
+ ins:(t,r,h)=>api("/rest/v1/"+t,{method:"POST",headers:h||{},body:JSON.stringify(r)}),
+ upd:(t,q,r)=>api("/rest/v1/"+t+"?"+q,{method:"PATCH",body:JSON.stringify(r)}),
+ del:(t,q)=>api("/rest/v1/"+t+"?"+q,{method:"DELETE"})};
+function overlay(h){$("ovc").innerHTML=h;$("ov").style.display="flex";$("ov").scrollTop=0;}
+const busy=t=>overlay(`<div class="ctr"><h1>${t}</h1></div>`);
+const fd=(x,d)=>x?new Date(x).toLocaleString("id-ID",{dateStyle:"short",timeStyle:"short"}):d;
+const loc=x=>{if(!x)return"";const d=new Date(x);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16);};
+const copy=t=>{try{navigator.clipboard.writeText(t);alert("Tersalin!");}catch(e){prompt("Salin teks ini:",t);}};
+/* ===== Layar siswa ===== */
+async function home(err){PV=null;$("pvb").style.display="none";await loadRoster();overlay(`<div class="ctr"><img src="icon-192.png" alt="" width="92" height="92" style="border-radius:22px;box-shadow:0 6px 0 rgba(0,0,0,.12)"></div><h1 style="margin-top:10px">Asesmen Game</h1><div class="sub" style="font-size:14px">Masukkan token dari gurumu ✨</div>
+<label>Token</label><input id="t_k" autocapitalize="characters" autocomplete="off" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:2px">
+${nameField()}
+<div class="err">${esc(err)}</div>
+<div class="ctr"><button style="background:#f97316;font-size:18px;padding:12px 32px" onclick="mulai()">▶ Mulai</button><br><button class="s m" onclick="guru()">🔑 Masuk Guru</button></div>
+<div class="sub" style="margin-top:10px">❤️ Nyawa terbatas • jalan ke jawaban yang benar<br>Design by Akhmad Fitra Harry, S.Pd</div>`);}
+let PV=null,ord=[0,1,2,3],SOAL=[],S={},i=0,correct=0,lives=3,got=0,TOT=1,lock=true,res=null,resKey=null,P={x:152,y:240,w:16,h:20,f:1};
+const keys={};
+const mkPads=n=>{const w=n===4?70:92,gp=n===4?8:14,x0=(320-(n*w+(n-1)*gp))/2;return Array.from({length:n},(_,k)=>({x:x0+k*(w+gp),y:34,w,h:56,k}));};
+let pads=mkPads(4);
+const lvl=n=>Math.min(3,Math.floor(n*3/SOAL.length)+1);
+let ROSTER=null;
+async function loadRoster(){if(ROSTER!==null)return;try{ROSTER=await rpc("daftar_siswa",{})||[];}catch(e){ROSTER=[];}}
+const nameField=()=>ROSTER&&ROSTER.length?`<label>Nama</label><select id="t_n"><option value="">— Pilih namamu —</option>${ROSTER.map(n=>`<option>${esc(n)}</option>`).join("")}</select>`:`<label>Nama</label><input id="t_n" placeholder="Nama lengkap">`;
+async function mulai(){
+ const kode=$("t_k").value.trim().toUpperCase(),nama=$("t_n").value.trim();
+ if(!kode)return home("Isi token dulu.");
+ if(!nama)return home("Pilih atau isi namamu dulu.");
+ busy("Memuat soal...");
+ try{
+  const d=await rpc("mulai",{p_kode:kode,p_nama:nama});
+  S={kode,mapel:d.mapel,nama:d.nama};
+  SOAL=d.soal;TOT=SOAL.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=d.nyawa>0?d.nyawa:Infinity;PV=null;
+  let fin=false;
+  if(d.lanjut){const sd=new Set(d.sudah);i=SOAL.findIndex(x=>!sd.has(x.id));correct=d.benar;got=d.got;if(d.nyawa>0)lives=d.nyawa-d.salah;fin=i<0||lives<=0;}
+  $("ov").style.display="none";
+  if(fin){i=Math.max(0,i);finish();}else{load();if(d.lanjut)$("m").textContent="↻ Melanjutkan pengerjaanmu...";}
+ }catch(e){home(e.message);}
+}
+function load(){
+ const s=SOAL[i];lock=false;res=null;resKey=null;P.x=152;P.y=240;
+ const raw=[s.a,s.b,s.c,s.d].filter(x=>x!=null&&x!=="");
+ ord=shuf(raw.map((_,k)=>k));pads=mkPads(raw.length);
+ $("no").textContent="Soal "+(i+1)+"/"+SOAL.length;
+ $("q").innerHTML=esc(s.tanya)+(s.gambar?`<img src="${s.gambar}" style="display:block;max-width:100%;max-height:150px;margin:6px auto 0;border-radius:8px">`:"");
+ $("o").innerHTML=ord.map((oi,k)=>`<div style="border-color:${COL[k]}"><b>${LET[k]}.</b> ${esc(raw[oi])}</div>`).join("");
+ $("m").textContent="Jalan ke kotak jawaban yang benar!";
+ hud();
+}
+function hud(){$("lf").textContent=lives===Infinity?"❤️ ∞":"❤️".repeat(Math.max(0,lives));$("sc").textContent=PV?"Skor: "+Math.round(100*got/TOT):"";}
+async function answer(k){
+ if(lock)return;lock=true;res=k;let r;
+ try{
+  r=PV?{kunci:SOAL[i].kunci,penjelasan:SOAL[i].penjelasan}:await rpc("cek2",{p_kode:S.kode,p_soal:SOAL[i].id,p_pilih:k<0?-1:ord[k]});resKey=ord.indexOf(r.kunci);
+  if(k===resKey){correct++;got+=SOAL[i].bobot||1;$("m").style.color="var(--ok)";$("m").textContent="✅ Benar! Hebat!";}
+  else{lives--;$("m").style.color="var(--no)";$("m").textContent=(k<0?"⏰ Waktu habis! ":"❌ Salah. ")+"Jawaban: "+LET[resKey];}
+ }catch(e){$("m").textContent="Koneksi bermasalah, mencoba lagi...";res=null;setTimeout(()=>lock=false,1500);return;}
+ hud();
+ if(k!==resKey&&r.penjelasan){$("pj").innerHTML="<b>💡 Pembahasan:</b> "+esc(r.penjelasan)+'<div class="ctr"><button onclick="nextQ()">Lanjut ▶</button></div>';$("pj").style.display="block";return;}
+ setTimeout(nextQ,1500);
+}
+function nextQ(){$("pj").style.display="none";$("m").style.color="";i++;(lives>0&&i<SOAL.length)?load():finish();}
+async function finish(){
+ if(PV){lock=true;const n=Math.round(100*got/TOT),sa=PV.sid?"'"+PV.sid+"'":"null";
+  overlay(`<div class="ctr"><h1>👁 Pratinjau selesai</h1><div class="sub">Hasil percobaan ini tidak disimpan.</div><div style="font-size:48px;font-weight:800">${n}</div><div class="sub">Benar ${correct} dari ${SOAL.length} soal</div><button onclick="preview('${PV.mid}',${sa})">↻ Coba lagi</button> <button class="s" onclick="endPV()">← Kembali ke soal</button></div>`);return;}
+ lock=true;let r;
+ try{r=await rpc("selesai",{p_kode:S.kode});}catch(e){r=null;}
+ const t=lives<=0?"💔 Nyawa habis!":"🎉 Selesai! Kerja bagus!";
+ overlay(`<div class="ctr"><div style="font-size:56px">${lives<=0?"💪":"🏆"}</div><h1>${t}</h1><b>${esc(S.nama)}</b><div class="sub">${esc(S.mapel)}</div>
+ <p style="font-size:14px">${r?"Jawabanmu sudah tersimpan.<br>Nilai akan disampaikan oleh gurumu.":"⚠️ Koneksi bermasalah, jawabanmu belum terkirim. Buka lagi dengan token dan nama yang sama untuk mengirim ulang."}</p>
+ <button onclick="home()">Selesai</button><div class="sub" style="margin-top:12px">Design by Akhmad Fitra Harry, S.Pd</div></div>`);
+}
+function tick(dt){
+ if(lock)return;
+ const v=110*dt;
+ const dx=(keys.ArrowRight||keys.d||keys.r?1:0)-(keys.ArrowLeft||keys.a||keys.l?1:0);
+ const dy=(keys.ArrowDown||keys.s||keys.d_?1:0)-(keys.ArrowUp||keys.w||keys.u?1:0);
+ if(dx)P.f=dx;
+ P.x=Math.max(4,Math.min(316-P.w,P.x+dx*v));P.y=Math.max(20,Math.min(296-P.h,P.y+dy*v));
+ pads.forEach(p=>{if(P.x+P.w>p.x+6&&P.x<p.x+p.w-6&&P.y<p.y+p.h-4&&P.y+P.h>p.y+10)answer(p.k);});
+}
+/* ===== Gambar arena ===== */
+const g=$("c").getContext("2d"),W=320,H=300;
+function tree(x,y){g.fillStyle="#7a4a21";g.fillRect(x-2,y,4,12);g.fillStyle="#2fa84f";g.beginPath();g.arc(x,y-2,10,0,7);g.fill();g.fillStyle="#1f8a3b";g.beginPath();g.arc(x+3,y,6,0,7);g.fill();}
+function npc(x,y){g.fillStyle="#5a3a22";g.fillRect(x,y,14,12);g.fillStyle="#f1c9a0";g.fillRect(x+2,y+3,10,8);g.fillStyle="#c0392b";g.fillRect(x+1,y+12,12,12);g.fillStyle="#fff";g.fillRect(x+5,y+14,5,6);}
+function draw(t){
+ for(let r=0;r<15;r++)for(let c=0;c<16;c++){g.fillStyle=(r+c)%2?"#f6e8c8":"#f0dcb3";g.fillRect(c*20,r*20,20,20);}
+ g.fillStyle="#8a6a52";g.fillRect(0,0,W,22);g.fillStyle="#fff";g.font="bold 11px monospace";g.textAlign="center";
+ g.fillText((S.mapel||"ASESMEN").toUpperCase().slice(0,36),W/2,15);
+ pads.forEach(p=>{
+  let c=COL[p.k];
+  if(res!==null&&resKey!==null){c=p.k===resKey?"#1f9d55":p.k===res?"#d93636":"#bbb";}
+  g.fillStyle="rgba(0,0,0,.2)";g.fillRect(p.x+3,p.y+4,p.w,p.h);g.fillStyle=c;g.fillRect(p.x,p.y,p.w,p.h);
+  g.strokeStyle="#fff";g.lineWidth=3;g.strokeRect(p.x+3,p.y+3,p.w-6,p.h-6);
+  g.fillStyle="#fff";g.font="bold 30px monospace";g.fillText(LET[p.k],p.x+p.w/2,p.y+38);
+ });
+ tree(14,130);tree(306,130);tree(14,200);tree(306,200);tree(14,270);tree(306,270);
+ const b=Math.sin(t/300)*2;npc(40,150+b);npc(266,170-b);
+ const px=P.x,py=P.y;
+ g.fillStyle="rgba(0,0,0,.2)";g.fillRect(px,py+P.h-2,P.w,4);g.fillStyle="#2b2b4a";g.fillRect(px+1,py,14,8);
+ g.fillStyle="#f1c9a0";g.fillRect(px+3,py+4,10,7);g.fillStyle="#000";g.fillRect(px+(P.f>0?9:4),py+6,2,2);
+ g.fillStyle="#0f766e";g.fillRect(px+2,py+11,12,8);
+ g.fillStyle="#333";g.font="9px monospace";g.fillText((S.nama||"kamu").slice(0,10),px+8,py-3);
+}
+let last=0;
+function loop(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;tick(dt);draw(t);requestAnimationFrame(loop);}
+const typing=e=>/INPUT|TEXTAREA|SELECT/.test((e.target&&e.target.tagName)||"");
+addEventListener("keydown",e=>{if(typing(e))return;keys[e.key.length>1?e.key:e.key.toLowerCase()]=true;if(e.key.startsWith("Arrow"))e.preventDefault();});
+addEventListener("keyup",e=>{keys[e.key.length>1?e.key:e.key.toLowerCase()]=false;});
+document.querySelectorAll(".dp button").forEach(b=>{
+ const d=b.dataset.d,k=d==="d"?"d_":d;
+ const on=e=>{e.preventDefault();keys[k]=true;},off=e=>{e.preventDefault();keys[k]=false;};
+ b.addEventListener("pointerdown",on);["pointerup","pointerleave","pointercancel"].forEach(ev=>b.addEventListener(ev,off));
+});
+/* ===== Panel guru ===== */
+function guru(err){
+ if(tok)return adm();
+ overlay(`<h1>🔑 Masuk Guru</h1><div class="sub">Akun dibuat di Supabase: Authentication > Users</div>
+ <label>Email</label><input id="g_e" type="email" autocomplete="username"><label>Kata sandi</label><input id="g_p" type="password" autocomplete="current-password">
+ <div class="err">${esc(err)}</div><div class="ctr"><button onclick="login()">Masuk</button><br><button class="s m" onclick="home()">← Kembali</button></div>`);
+}
+async function login(){
+ try{const j=await api("/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email:$("g_e").value.trim(),password:$("g_p").value})});tok=j.access_token;adm();}
+ catch(e){guru(e.message);}
+}
+const T=async f=>{try{await f();}catch(e){if(/jwt|expired/i.test(e.message)){tok=null;guru("Sesi habis, masuk lagi.");}else adm(e.message);}};
+const back=`<div class="ctr"><button class="s" onclick="vMapel()">← Kembali</button></div>`;
+function vMapel(err){T(async()=>{
+ busy("Memuat...");
+ const L=await db.sel("mapel","select=*,soal(count),token(count)&order=created_at");
+ overlay(`<h1>Mata pelajaran &amp; soal</h1><div class="sub">Setiap mapel punya soal, token, dan jadwal sendiri.</div>
+ <input id="n_m" placeholder="Nama mata pelajaran baru"><button onclick="addMapel()">+ Tambah mapel</button><div class="err">${esc(err)}</div>
+ ${L.map(m=>`<div class="card"><div class="top"><b>${esc(m.nama)}</b><span class="pill ${m.aktif?"":"x"}">${m.aktif?"Dibuka":"Ditutup"}</span></div>
+ <div class="sub l">${m.soal[0].count} soal · ${m.token[0].count} token · ❤️ ${m.nyawa>0?m.nyawa+" nyawa":"tanpa batas"}</div>
+ <div class="sub l">Buka: ${fd(m.buka,"kapan saja")} · Tutup: ${fd(m.tutup,"tidak dibatasi")}</div>
+ <button class="m" onclick="vSoal('${m.id}')">✏️ Soal</button><button class="m s" onclick="vJadwal('${m.id}')">⚙ Atur</button><button class="m s" onclick="vToken('${m.id}')">🎫 Token</button><button class="m s" onclick="vHasil('${m.id}')">📊 Hasil</button><button class="m s" onclick="hapus('${m.id}')">🗑️</button></div>`).join("")}
+ <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
+});}
+function addMapel(){const n=$("n_m").value.trim();if(!n)return;T(async()=>{await db.ins("mapel",[{nama:n}]);vMapel();});}
+function hapus(id){if(confirm("Hapus mapel beserta soal, token, dan hasilnya?"))T(async()=>{await db.del("mapel","id=eq."+id);vMapel();});}
+/* ===== Soal: daftar, form, impor ===== */
+const hdr=(t,b)=>`<div class="hd"><button class="s m" onclick="${b}">‹ Kembali</button><h1>${t}</h1><button class="s m" onclick="home()">✕ Tutup</button></div>`;
+function readImg(file,max=800){return new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.7));};im.onerror=()=>no(new Error("Gambar tidak terbaca."));im.src=fr.result;};fr.readAsDataURL(file);});}
+function vSoal(id){T(async()=>{
+ const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("soal","mapel_id=eq."+id+"&order=created_at&select=id,tanya,kunci,bobot");
+ overlay(`${hdr("Soal: "+esc(m.nama),"vMapel()")}
+ <button onclick="vForm('${id}')">+ Tambah soal</button>
+ <button class="s" style="width:100%" onclick="vImpor('${id}')">📥 Impor dari berkas Word, PDF, foto</button>
+ <button class="s" style="width:100%" onclick="preview('${id}')">▶ Coba soal (pratinjau)</button>
+ <div class="sub l" style="margin:14px 0 6px;font-size:14px">${L.length} soal. Siswa tidak pernah melihat kunci jawaban.</div>
+ ${L.map((s,n)=>`<div class="it" style="align-items:flex-start"><span class="badge">${n+1}</span><span style="flex:1;font-size:14px">${esc(s.tanya)}<br><small style="opacity:.7">Kunci: <b>${LET[s.kunci]}</b> · bobot ${s.bobot}</small></span><span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"><button class="m s" onclick="preview('${id}','${s.id}')">▶</button><button class="m s" onclick="vForm('${id}','${s.id}')">Ubah</button><button class="m s" onclick="delSoal('${s.id}','${id}')">Hapus</button></span></div>`).join("")}`);
+});}
+function vForm(mid,sid){T(async()=>{
+ let s={tanya:"",a:"",b:"",c:"",d:"",kunci:0,bobot:1,gambar:null,penjelasan:""};
+ if(sid){const r=await db.sel("soal","id=eq."+sid);s=r[0];}
+ window._img=s.gambar||null;window._kk=s.kunci;
+ const n=sid?(s.d?4:3):4,gp=g=>g?`<img src="${g}" style="max-width:100%;max-height:140px;margin-top:6px;border-radius:8px"> <button class="m s" onclick="noImg()">Hapus gambar</button>`:"";
+ overlay(`${hdr(sid?"Ubah soal":"Tambah soal","vSoal('"+mid+"')")}
+ <label>Pertanyaan</label><textarea id="f_q" style="min-height:90px">${esc(s.tanya)}</textarea>
+ <label>Gambar (opsional)</label><input id="f_g" type="file" accept="image/*" onchange="pickImg(this)"><div id="f_gp">${gp(s.gambar)}</div>
+ <label>Jumlah pilihan</label><select id="f_n" onchange="optN()"><option value="3" ${n===3?"selected":""}>3 pilihan (A, B, C)</option><option value="4" ${n===4?"selected":""}>4 pilihan (A, B, C, D)</option></select>
+ <label>Pilihan A</label><input id="f_a" value="${esc(s.a)}"><label>Pilihan B</label><input id="f_b" value="${esc(s.b)}"><label>Pilihan C</label><input id="f_c" value="${esc(s.c)}">
+ <div id="f_dw"><label>Pilihan D</label><input id="f_d" value="${esc(s.d)}"></div>
+ <div class="g2"><div><label>Kunci jawaban</label><select id="f_k"></select></div><div><label>Bobot</label><input id="f_w" type="number" min="1" value="${s.bobot}"></div></div>
+ <label>Pembahasan (opsional)</label><textarea id="f_p" style="min-height:70px">${esc(s.penjelasan)}</textarea><div class="sub l">Ditampilkan ke siswa setelah menjawab salah.</div>
+ <div class="ctr"><button onclick="saveSoal('${mid}','${sid||""}')">Simpan soal</button></div>`);
+ optN();
+});}
+function optN(){const n=+$("f_n").value;$("f_dw").style.display=n===4?"":"none";const cur=$("f_k").value!==""?+$("f_k").value:(window._kk||0);
+ $("f_k").innerHTML=LET.slice(0,n).split("").map((x,k)=>`<option value="${k}" ${k===Math.min(cur,n-1)?"selected":""}>${x}</option>`).join("");}
+async function pickImg(el){const f=el.files[0];if(!f)return;try{window._img=await readImg(f);$("f_gp").innerHTML=`<img src="${window._img}" style="max-width:100%;max-height:140px;margin-top:6px;border-radius:8px"> <button class="m s" onclick="noImg()">Hapus gambar</button>`;}catch(e){alert(e.message);}}
+function noImg(){window._img=null;$("f_gp").innerHTML="";$("f_g").value="";}
+function saveSoal(mid,sid){
+ const v=k=>$(k).value.trim(),n=+$("f_n").value;
+ const r={tanya:v("f_q"),a:v("f_a"),b:v("f_b"),c:v("f_c"),d:n===4?v("f_d"):null,kunci:+$("f_k").value,bobot:Math.max(1,+$("f_w").value||1),gambar:window._img||null,penjelasan:v("f_p")||null};
+ if(!r.tanya||!r.a||!r.b||!r.c||(n===4&&!r.d))return alert("Lengkapi pertanyaan dan semua pilihan.");
+ T(async()=>{if(sid)await db.upd("soal","id=eq."+sid,r);else await db.ins("soal",[{...r,mapel_id:mid}]);vSoal(mid);});
+}
+function preview(mid,sid){T(async()=>{
+ const [m]=await db.sel("mapel","id=eq."+mid);
+ let L=await db.sel("soal","mapel_id=eq."+mid+(sid?"&id=eq."+sid:"")+"&order=created_at");
+ if(!L.length)return alert("Belum ada soal.");
+ if(!sid)L=shuf(L);
+ PV={mid,sid:sid||null};S={kode:"PRATINJAU",mapel:m.nama,nama:"Pratinjau",nyawa:m.nyawa};
+ SOAL=L;TOT=L.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=m.nyawa>0?m.nyawa:Infinity;
+ $("pvb").style.display="flex";$("ov").style.display="none";load();
+});}
+function endPV(){const m=PV&&PV.mid;PV=null;lock=true;$("pvb").style.display="none";m?vSoal(m):home();}
+function delSoal(sid,id){if(confirm("Hapus soal ini?"))T(async()=>{await db.del("soal","id=eq."+sid);vSoal(id);});}
+function parseSoal(txt,keys){
+ const lines=txt.replace(/\r/g,"").split("\n").map(l=>l.trim()).filter(Boolean),out=[];
+ if(lines.some(l=>l.split("|").length>=5)){
+  lines.forEach(l=>{const p=l.split("|").map(x=>x.trim());if(p.length>=5){const z=p[p.length-1];out.push({q:p[0],o:p.slice(1,-1).filter(Boolean),k:z.length===1?LET.indexOf(z.toUpperCase()):-1});}});
+ }else{
+  let cur=null,last="";
+  for(const l of lines){
+   let m;
+   if(cur&&(m=l.match(/^(?:pembahasan|penjelasan)\s*[:=-]\s*(.*)$/i))){cur.p=m[1];last="p";continue;}
+   if(cur&&(m=l.match(/^(?:kunci|jawaban|jwb|key)\s*[:=-]\s*([A-Da-d])\b/i))){cur.k=LET.indexOf(m[1].toUpperCase());continue;}
+   if(cur&&cur.o.length<4&&(m=l.match(/^[A-Da-d]\s*[.)]\s*(.*)$/))){cur.o.push(m[1]);last="o";continue;}
+   if(m=l.match(/^(\d{1,3})\s*[.)](?!\d)\s*(.*)$/)){cur={q:m[2],o:[],k:-1};out.push(cur);last="q";continue;}
+   if(cur){if(last==="o")cur.o[cur.o.length-1]+=" "+l;else if(last==="p")cur.p+=" "+l;else cur.q+=" "+l;}
+  }
+ }
+ for(const m of (keys||"").matchAll(/(\d+)\s*[.:)\-=]?\s*([A-Da-d])(?![a-z])/g)){const q=out[+m[1]-1];if(q)q.k=LET.indexOf(m[2].toUpperCase());}
+ return out;
+}
+function vImpor(id){
+ overlay(`${hdr("Impor soal","vSoal('"+id+"')")}
+ <div class="drop" onclick="$('im_f').click()"><div style="font-size:44px">📄</div><b>Unggah berkas soal</b><div class="sub" style="margin:6px 0 0">Word (.docx), PDF, atau <b>foto kertas soal</b>. Teks dibaca otomatis, lalu tinggal diperiksa.</div></div>
+ <input id="im_f" type="file" accept=".docx,.pdf,image/*" style="display:none" onchange="X(()=>bacaFile(this))">
+ <div id="im_s" class="sub" style="margin-top:8px"></div>
+ <details><summary>Format yang dibaca &amp; contoh</summary><pre>1. Hasil dari 1+1 adalah...
+A. 2
+B. 3
+C. 4
+D. 5
+Kunci: A
+Pembahasan: 1+1 sama dengan 2, jadi jawabannya A.
+
+2. Ibu kota Indonesia adalah...
+A. Jakarta
+B. Bandung
+C. Medan
+Kunci: A</pre><div class="sub l">Baris "Pembahasan:" bersifat opsional. Boleh 3 pilihan (A–C) atau 4 pilihan (A–D). Kunci boleh ditulis per soal (Kunci: A) atau di kolom kunci terpisah. Format satu baris juga dibaca: Pertanyaan | A | B | C | D | Kunci. Gambar ditambahkan lewat tombol Ubah pada soal.</div></details>
+ <label>Isi soal (hasil baca berkas, atau tempel dan ketik sendiri)</label>
+ <textarea id="im_t" style="min-height:240px" placeholder="Hasil baca berkas muncul di sini. Boleh diperbaiki."></textarea>
+ <label>Kunci jawaban terpisah (opsional), contoh: 1.B 2.C 3.A</label><input id="im_k" placeholder="1.B 2.C 3.A ...">
+ <div class="ctr"><button onclick="periksa('${id}')">🔍 Periksa soal</button></div><div id="im_p"></div>`);
+}
+async function bacaFile(el){
+ const f=el.files[0];if(!f)return;const st=$("im_s"),nm=f.name.toLowerCase();let t="";
+ st.textContent="Membaca berkas...";
+ if(nm.endsWith(".docx")){await need("mammoth");t=(await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()})).value;}
+ else if(nm.endsWith(".pdf")){await need("pdfjs");pdfjsLib.GlobalWorkerOptions.workerSrc=CDN+"pdf.js/3.11.174/pdf.worker.min.js";
+  const d=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;
+  for(let p=1;p<=d.numPages;p++){const c=await(await d.getPage(p)).getTextContent();t+=c.items.map(i=>i.str+(i.hasEOL?"\n":" ")).join("")+"\n";}}
+ else if(f.type.startsWith("image/")){await need("ocr");
+  const r=await Tesseract.recognize(f,"ind",{logger:m=>{if(m.status==="recognizing text")st.textContent="Membaca foto... "+Math.round(m.progress*100)+"%";}});t=r.data.text;}
+ else{st.textContent="";throw new Error("Format tidak didukung. Pakai .docx, .pdf, atau foto.");}
+ el.value="";
+ if(!t.trim()){st.textContent="";throw new Error("Tidak ada teks terbaca. Jika PDF hasil scan, unggah sebagai foto.");}
+ $("im_t").value=t.trim();st.textContent="✅ Selesai. Periksa dan perbaiki teks di bawah.";
+}
+function periksa(id){
+ const L=parseSoal($("im_t").value,$("im_k").value),ok=L.filter(x=>x.o.length>=2&&x.o.length<=4&&x.k>=0&&x.k<x.o.length);
+ window._ok=ok.map(x=>({mapel_id:id,tanya:x.q,a:x.o[0],b:x.o[1],c:x.o[2]||null,d:x.o[3]||null,kunci:x.k,bobot:1,penjelasan:x.p||null}));
+ $("im_p").innerHTML=`<div class="sub l" style="margin-top:10px"><b>${ok.length}</b> soal siap disimpan${L.length-ok.length?`, <b style="color:var(--no)">${L.length-ok.length}</b> perlu diperbaiki`:""}.</div>`+
+ L.map((x,n)=>{const g=ok.includes(x);return `<div class="it" style="align-items:flex-start"><span class="badge" style="${g?"":"background:var(--no)"}">${n+1}</span><span style="flex:1;font-size:13px">${esc(x.q)}<br><small>${x.o.map((o,k)=>(k===x.k?"✔ ":"")+LET[k]+". "+esc(o)).join(" · ")}</small>${g?"":`<br><small style="color:var(--no)">${x.o.length<2?"Pilihan kurang":x.k<0?"Kunci belum ada":"Periksa pilihan/kunci"}</small>`}</span></div>`;}).join("")+
+ (ok.length?`<div class="ctr"><button onclick="simpanImpor('${id}')">💾 Simpan ${ok.length} soal</button></div>`:"");
+}
+function simpanImpor(id){T(async()=>{await db.ins("soal",window._ok);vSoal(id);});}
+function vJadwal(id){T(async()=>{
+ const [m]=await db.sel("mapel","id=eq."+id);
+ overlay(`${hdr("Pengaturan: "+esc(m.nama),"vMapel()")}
+ <label>Status</label><select id="j_a"><option value="true" ${m.aktif?"selected":""}>Dibuka</option><option value="false" ${m.aktif?"":"selected"}>Ditutup</option></select>
+ <label>Buka (kosong = kapan saja)</label><input id="j_b" type="datetime-local" value="${loc(m.buka)}">
+ <label>Tutup (kosong = tidak dibatasi)</label><input id="j_t" type="datetime-local" value="${loc(m.tutup)}">
+ <label>❤️ Jumlah nyawa (hati)</label><input id="j_n" type="number" min="0" max="10" value="${m.nyawa==null?3:m.nyawa}">
+ <div class="sub l">Nyawa berkurang setiap jawaban salah. Jika habis, asesmen berhenti. Isi 0 untuk nyawa tanpa batas.</div>
+ <label>🎯 KKM (batas nilai tuntas)</label><input id="j_k" type="number" min="0" max="100" value="${m.kkm==null?70:m.kkm}">
+ <div class="sub l">Siswa dengan nilai di bawah KKM diberi label Remedial di hasil.</div>
+ <div class="ctr"><button onclick="saveJ('${id}')">Simpan</button></div>`);
+});}
+function saveJ(id){const b=$("j_b").value,t=$("j_t").value,n=Math.max(0,Math.min(10,parseInt($("j_n").value,10)||0));
+ T(async()=>{await db.upd("mapel","id=eq."+id,{aktif:$("j_a").value==="true",buka:b?new Date(b).toISOString():null,tutup:t?new Date(t).toISOString():null,nyawa:n,kkm:Math.max(0,Math.min(100,parseInt($("j_k").value,10)||0))});vMapel();});}
+function vToken(id){T(async()=>{
+ const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("token","mapel_id=eq."+id+"&select=kode,dipakai");
+ overlay(`<h1>🎫 ${esc(m.nama)}</h1><div class="sub">${L.length} token · ${L.filter(x=>x.dipakai).length} sudah dipakai</div>
+ <div class="sub l">Kode token hanya tampil di Kartu token (PDF) pada dasbor.</div>
+ <label>Jumlah token yang dibuat</label><input id="k_n" type="number" min="1" value="30">
+ <button class="m" onclick="mkToken('${id}')">🎫 Buat token</button><button class="m s" onclick="delTk('${id}')">Hapus semua token</button>${back}`);
+});}
+function mkToken(id){
+ const n=Math.min(500,+$("k_n").value||0);if(!n)return;
+ const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",rc=()=>Array.from(crypto.getRandomValues(new Uint8Array(6)),x=>A[x%32]).join("");
+ const rows=Array.from({length:n},()=>({kode:rc(),mapel_id:id}));
+ T(async()=>{await db.ins("token",rows);vToken(id);});
+}
+function delTk(id){if(confirm("Hapus semua token mapel ini?"))T(async()=>{await db.del("token","mapel_id=eq."+id);vToken(id);});}
+function vHasil(id){T(async()=>{
+ const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("hasil","mapel_id=eq."+id+"&order=nilai.desc,nama");
+ window._hs="Nama,Benar,Total,Nilai\n"+L.map(x=>`"${x.nama}",${x.benar},${x.total},${x.nilai}`).join("\n");
+ overlay(`<h1>📊 ${esc(m.nama)}</h1><div class="sub">${L.length} siswa selesai</div>
+ <button class="m s" onclick="copy(window._hs)">📋 Salin CSV</button>
+ ${L.map((x,n)=>`<div class="it"><span>${n+1}. ${esc(x.nama)}</span><b>${x.nilai} <small>(${x.benar}/${x.total})</small></b></div>`).join("")}${back}`);
+});}
+/* ===== Dasbor guru ===== */
+const shuf=a=>{for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]];}return a;};
+let DM="",DQ="",DS="",DATA={m:[],h:[],cfg:{},live:[]};
+const TB=["mapel","soal","token","hasil","pengaturan","siswa"],ORD={mapel:"created_at",soal:"created_at",token:"kode",hasil:"created_at",pengaturan:"kunci",siswa:"nama"};
+const all=async(t,q="")=>{let o=[],n=0,r;do{r=await db.sel(t,q+(q?"&":"")+"limit=1000&offset="+n);o=o.concat(r);n+=1000;}while(r.length===1000);return o;};
+const X=f=>Promise.resolve().then(f).catch(e=>alert(e.message));
+const lib=u=>new Promise((ok,no)=>{const s=document.createElement("script");s.src=u;s.onload=ok;s.onerror=()=>no(new Error("Gagal memuat pustaka. Periksa internet."));document.head.appendChild(s);});
+const CDN="https://cdnjs.cloudflare.com/ajax/libs/";
+async function need(k){
+ if(k==="pdf"&&!window.jspdf){await lib(CDN+"jspdf/2.5.1/jspdf.umd.min.js");await lib(CDN+"jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js");}
+ if(k==="xls"&&!window.XLSX)await lib(CDN+"xlsx/0.18.5/xlsx.full.min.js");
+ if(k==="mammoth"&&!window.mammoth)await lib(CDN+"mammoth/1.6.0/mammoth.browser.min.js");
+ if(k==="pdfjs"&&!window.pdfjsLib)await lib(CDN+"pdf.js/3.11.174/pdf.min.js");
+ if(k==="ocr"&&!window.Tesseract)await lib(CDN+"tesseract.js/5.0.5/tesseract.min.js");
+}
+const dl=(n,b)=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);};
+const mNama=()=>(DATA.m.find(x=>x.id===DM)||{}).nama||"";
+const kk=x=>(x.mapel&&x.mapel.kkm!=null)?x.mapel.kkm:70;
+const rowsF=()=>DATA.h.filter(x=>(!DM||x.mapel_id===DM)&&(!DQ||(x.nama||"").toLowerCase().includes(DQ))&&(DS==="T"?x.nilai>=kk(x):DS==="R"?x.nilai<kk(x):true));
+const HEAD=["No","Nama","Mapel","Token","Benar","Salah","Nilai","Status"];
+const rowsX=()=>rowsF().map((x,n)=>[n+1,x.nama||"",(x.mapel&&x.mapel.nama)||"",x.kode,x.benar,x.total-x.benar,x.nilai,x.nilai>=kk(x)?"Tuntas":"Remedial"]);
+async function adm(err){
+ busy("Memuat...");
+ try{
+  const [m,h,cf,tk]=await Promise.all([db.sel("mapel","select=id,nama&order=created_at"),all("hasil","select=*,mapel(nama,kkm)&order=created_at.desc"),db.sel("pengaturan","select=*").catch(()=>[]),db.sel("token","dipakai=eq.true&select=kode,nama,mapel(nama)&order=kode")]);
+  const done=new Set(h.map(x=>x.kode));
+  DATA={m,h,cfg:Object.fromEntries(cf.map(x=>[x.kunci,x.nilai])),live:tk.filter(x=>!done.has(x.kode))};
+ }catch(e){if(/jwt|expired/i.test(e.message)){tok=null;return guru("Sesi habis, masuk lagi.");}err=e.message;}
+ dash(err);
+}
+function dash(err){
+ overlay(`<h1>Dasbor Guru</h1><div class="sub">${esc([DATA.cfg.sekolah,DATA.cfg.kelas,DATA.cfg.tahun].filter(Boolean).join(" • "))}</div>
+ <div class="card" style="margin:8px 0;border-style:dashed">${DATA.live.length?`<b style="font-size:13px">Sedang mengerjakan (${DATA.live.length})</b>`+DATA.live.map(x=>`<div class="it"><span>${esc(x.nama)} <small>· ${esc(x.mapel&&x.mapel.nama)}</small></span><button class="m s" onclick="doReset('${x.kode}')">↺ Reset</button></div>`).join(""):`<div class="sub" style="margin:0">Belum ada siswa yang sedang mengerjakan.</div>`}</div>
+ <div class="g2"><button onclick="vMapel()">📚 Mapel &amp; Soal</button><button class="s" onclick="vSiswa()">👥 Daftar siswa</button><button class="s" onclick="vBackup()">💾 Cadangan</button><button class="s" onclick="vCfg()">⚙ Pengaturan kelas</button></div>
+ <select id="d_m" onchange="DM=this.value;dash()"><option value="">Semua mata pelajaran</option>${DATA.m.map(m=>`<option value="${m.id}" ${DM===m.id?"selected":""}>${esc(m.nama)}</option>`).join("")}</select>
+ <select id="d_s" onchange="DS=this.value;tbl()"><option value="">Semua status</option><option value="T" ${DS==="T"?"selected":""}>Tuntas</option><option value="R" ${DS==="R"?"selected":""}>Remedial</option></select>
+ <div class="g2"><input id="d_q" placeholder="Cari nama siswa..." value="${esc(DQ)}" oninput="DQ=this.value.toLowerCase();tbl()" style="margin:0"><button class="s" style="margin:0" onclick="adm()">↻ Muat ulang</button></div>
+ <button class="s m" onclick="copy(location.href.split('#')[0])">🔗 Salin link siswa</button><button class="s m" onclick="kartuPick()">🪪 Kartu token (PDF)</button><button class="s m" onclick="vAnalisis()">📊 Analisis soal</button>
+ <button class="m o" onclick="X(expPDF)">Unduh PDF</button><button class="m" onclick="X(expXLS)">Unduh Excel</button><button class="m s" onclick="expCSV()">Unduh CSV</button><button class="m s" onclick="copy(rowsF().filter(x=>x.nilai<kk(x)).map(x=>x.nama).join('\n')||'Tidak ada siswa remedial')">📋 Salin daftar remedial</button>
+ <div id="sm" class="sub l" style="margin-top:8px"></div><div class="tw"><table id="tb"></table></div>
+ <label>RESET TOKEN AGAR BISA DIPAKAI ULANG</label><input id="d_r" placeholder="Kode token" style="text-transform:uppercase"><button class="s m" onclick="resetKode()">Reset token</button>
+ <div class="card zona"><b style="letter-spacing:1px;font-size:13px">ZONA HAPUS DATA</b><div class="sub l">Berlaku untuk mapel yang dipilih di atas (${esc(DM?mNama():"semua mapel")}).</div>
+ <button class="m s" onclick="zona('hasil')">Hapus hasil</button><button class="m s" onclick="zona('token')">Hapus token</button><button class="m s" onclick="zona('all')">Hapus SEMUA data</button></div>
+ <div class="err">${esc(err)}</div><div class="ctr"><button class="s" onclick="home()">← Ke layar siswa</button></div>`);
+ tbl();
+}
+function tbl(){
+ const F=rowsF(),R=rowsX(),t=F.filter(x=>x.nilai>=kk(x)).length,av=F.length?Math.round(F.reduce((a,x)=>a+x.nilai,0)/F.length):0;
+ $("sm").textContent=F.length?F.length+" selesai · "+t+" tuntas · "+(F.length-t)+" remedial · rata-rata "+av:"";
+ $("tb").innerHTML="<tr>"+HEAD.map(h=>`<th>${h}</th>`).join("")+"</tr>"+(R.length?R.map(r=>`<tr class="clk" onclick="vDetail('${esc(r[3])}')">`+r.map((c,k)=>k===7?`<td class="${c==="Tuntas"?"st-t":"st-r"}">${c}</td>`:`<td>${esc(c)}</td>`).join("")+"</tr>").join(""):`<tr><td colspan="8" style="text-align:center;opacity:.7">Belum ada hasil</td></tr>`);}
+function vDetail(k){T(async()=>{
+ const [h]=await db.sel("hasil","kode=eq."+k+"&select=*,mapel(nama,kkm)"),L=await db.sel("jawaban","kode=eq."+k+"&select=pilih,benar,soal(tanya,a,b,c,d,kunci)");
+ const st=h.nilai>=kk(h)?"Tuntas":"Remedial";
+ overlay(`<h1>${esc(h.nama)}</h1><div class="sub">${esc(h.mapel&&h.mapel.nama)} · Nilai <b>${h.nilai}</b> · <b class="${st==="Tuntas"?"st-t":"st-r"}">${st}</b> (KKM ${kk(h)})</div>
+ <div class="sub l">${h.benar} benar dari ${h.total} soal${L.length<h.total?` · ${h.total-L.length} soal belum terjawab`:""}</div>
+ ${L.sort((a,b)=>a.benar-b.benar).map(x=>{const o=x.soal?[x.soal.a,x.soal.b,x.soal.c,x.soal.d]:[];return `<div class="it" style="align-items:flex-start"><span class="badge" style="${x.benar?"":"background:var(--no)"}">${x.benar?"✔":"✖"}</span><span style="flex:1;font-size:13px">${esc(x.soal&&x.soal.tanya)}<br><small>Jawaban siswa: <b>${x.pilih<0?"tidak menjawab":LET[x.pilih]+". "+esc(o[x.pilih])}</b>${x.benar?"":` · Kunci: <b>${x.soal?LET[x.soal.kunci]+". "+esc(o[x.soal.kunci]):""}</b>`}</small></span></div>`;}).join("")}
+ <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
+});}
+function expCSV(){const q=v=>'"'+String(v).replace(/"/g,'""')+'"';dl("hasil.csv",new Blob(["\ufeff"+[HEAD,...rowsX()].map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"}));}
+async function expXLS(){await need("xls");const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([HEAD,...rowsX()]),"Hasil");XLSX.writeFile(wb,"hasil.xlsx");}
+async function expPDF(){await need("pdf");const d=new window.jspdf.jsPDF();
+ d.setFontSize(14);d.text("Hasil Asesmen"+(DM?" - "+mNama():""),14,16);d.setFontSize(10);d.text([DATA.cfg.sekolah,DATA.cfg.kelas,DATA.cfg.tahun].filter(Boolean).join(" • "),14,23);
+ d.autoTable({head:[HEAD],body:rowsX(),startY:28});d.save("hasil.pdf");}
+function kartuPick(){T(async()=>{
+ const L=await db.sel("mapel","select=id,nama,token(count)&order=created_at");
+ overlay(`<h1>🪪 Kartu token (PDF)</h1><div class="sub">Pilih satu mata pelajaran. Tiap mapel dicetak terpisah.</div>
+ <label style="display:flex;gap:8px;align-items:center"><input id="k_u" type="checkbox" style="width:auto;margin:0"> Hanya token yang belum dipakai</label>
+ ${L.map(m=>`<div class="it"><span><b>${esc(m.nama)}</b><br><small>${m.token[0].count} token</small></span><button class="m" onclick="X(()=>kartu('${m.id}'))">🪪 Cetak</button></div>`).join("")||"<div class='sub'>Belum ada mapel.</div>"}
+ <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
+});}
+async function kartu(mid){
+ const uo=$("k_u")&&$("k_u").checked;await need("pdf");
+ const mp=(DATA.m.find(x=>x.id===mid)||{}).nama||"";
+ const L=await all("token","select=kode,nama&mapel_id=eq."+mid+(uo?"&dipakai=eq.false":"")+"&order=kode");
+ if(!L.length)return alert("Tidak ada token untuk dicetak.");
+ const d=new window.jspdf.jsPDF(),link=location.href.split("#")[0],sek=[DATA.cfg.sekolah,DATA.cfg.kelas].filter(Boolean).join(" • ");
+ L.forEach((t,n)=>{if(n&&n%10===0)d.addPage();const k=n%10,x=10+(k%2)*95,y=10+Math.floor(k/2)*55;
+  d.rect(x,y,90,50);d.setFontSize(8);d.text(sek,x+4,y+7);d.setFontSize(13);d.text(t.nama||"Nama: ...............",x+4,y+17);
+  d.setFontSize(10);d.text(mp,x+4,y+24);d.setFontSize(22);d.text(t.kode,x+4,y+37);d.setFontSize(7);d.text(link,x+4,y+46);});
+ d.save("kartu-token-"+(mp.replace(/[^A-Za-z0-9]+/g,"-")||"mapel")+".pdf");}
+function vAnalisis(){if(!DM)return alert("Pilih mata pelajaran dulu.");T(async()=>{
+ const L=await rpc("analisis",{p_mapel:DM});
+ overlay(`<h1>📊 Analisis soal</h1><div class="sub">${esc(mNama())}</div>${L.map((s,n)=>{const p=s.dijawab?Math.round(100*s.benar/s.dijawab):0,lv=!s.dijawab?"-":p>=70?"Mudah":p>=40?"Sedang":"Sulit";
+ return `<div class="card" style="margin-top:8px"><div style="font-size:13px"><b>${n+1}.</b> ${esc(s.tanya)}</div><div class="top" style="margin-top:6px"><div style="flex:1;height:8px;background:var(--in);border-radius:9px"><div style="width:${p}%;height:8px;background:var(--ac);border-radius:9px"></div></div><b>${p}%</b><span class="pill">${lv}</span></div><div class="sub l">Dijawab ${s.dijawab} · A:${s.a} B:${s.b} C:${s.c} D:${s.d} · Kunci ${LET[s.kunci]}</div></div>`;}).join("")||"<div class='sub'>Belum ada soal.</div>"}
+ <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
+});}
+function vSiswa(){T(async()=>{
+ const L=await all("siswa","select=nama&order=nama");
+ overlay(`<h1>👥 Daftar siswa kelas</h1><div class="sub l" style="line-height:1.5">Isi satu nama per baris. Jika daftar diisi, siswa memilih namanya dari daftar dan hanya bisa memakai satu token per mata pelajaran. Kosongkan jika siswa boleh mengetik sendiri.</div>
+ <textarea id="s_l" style="min-height:260px">${esc(L.map(x=>x.nama).join("\n"))}</textarea><div class="sub l">${L.length} siswa tersimpan</div>
+ <button onclick="saveSiswa()">Simpan daftar</button><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
+});}
+function saveSiswa(){const n=[...new Set($("s_l").value.split("\n").map(x=>x.trim()).filter(Boolean))];
+ T(async()=>{await db.del("siswa","nama=not.is.null");if(n.length)await db.ins("siswa",n.map(x=>({nama:x})));ROSTER=null;alert("Daftar tersimpan: "+n.length+" siswa.");adm();});}
+function vCfg(){const c=DATA.cfg;overlay(`<h1>⚙ Pengaturan kelas</h1><div class="sub">Dipakai di judul PDF dan kartu token</div>
+ <label>Nama sekolah</label><input id="c_s" value="${esc(c.sekolah)}"><label>Kelas</label><input id="c_k" value="${esc(c.kelas)}"><label>Tahun ajaran</label><input id="c_t" value="${esc(c.tahun)}">
+ <div class="ctr"><button onclick="saveC()">Simpan</button></div><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);}
+function saveC(){T(async()=>{await db.ins("pengaturan",[{kunci:"sekolah",nilai:$("c_s").value.trim()},{kunci:"kelas",nilai:$("c_k").value.trim()},{kunci:"tahun",nilai:$("c_t").value.trim()}],{Prefer:"resolution=merge-duplicates"});adm();});}
+function vBackup(){overlay(`<h1>💾 Cadangan</h1><div class="sub">Simpan semua mapel, soal, token, dan hasil ke satu file.</div>
+ <div class="ctr"><button onclick="X(bk)">⬇ Unduh cadangan</button></div>
+ <label>Pulihkan dari file cadangan (.json)</label><input id="b_f" type="file" accept=".json,application/json">
+ <div class="ctr"><button class="s m" onclick="X(rs)">Pulihkan</button></div><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);}
+async function bk(){const o={versi:1,tgl:new Date().toISOString()};for(const t of TB)o[t]=await all(t,"select=*&order="+ORD[t]);
+ dl("cadangan-asesmen-"+o.tgl.slice(0,10)+".json",new Blob([JSON.stringify(o)],{type:"application/json"}));}
+async function rs(){const f=$("b_f").files[0];if(!f)return alert("Pilih file cadangan dulu.");
+ if(!confirm("Pulihkan data dari file ini? Data dengan ID yang sama akan ditimpa."))return;
+ const o=JSON.parse(await f.text());
+ for(const t of TB){const r=o[t]||[];for(let n=0;n<r.length;n+=300)await db.ins(t,r.slice(n,n+300),{Prefer:"resolution=merge-duplicates"});}
+ alert("Pemulihan selesai.");adm();}
+function resetKode(){const k=$("d_r").value.trim().toUpperCase();if(!k)return;
+ T(async()=>{if(!(await db.sel("token","kode=eq."+k+"&select=kode")).length)return alert("Token tidak ditemukan.");
+ await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,nama:null,jumlah:0});alert("Token "+k+" direset.");adm();});}
+function doReset(k){if(confirm("Reset agar siswa ini bisa mengulang?"))T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,nama:null,jumlah:0});adm();});}
+function zona(j){
+ if(j==="all"){if(prompt("Ketik HAPUS untuk menghapus SEMUA mapel, soal, token, dan hasil:")!=="HAPUS")return;T(async()=>{await db.del("mapel","id=not.is.null");DM="";adm();});return;}
+ if(!confirm((j==="hasil"?"Hapus hasil ":"Hapus semua token ")+(DM?mNama():"SEMUA mapel")+"?"))return;
+ T(async()=>{if(j==="hasil")await db.del("hasil",DM?"mapel_id=eq."+DM:"id=not.is.null");else await db.del("token",DM?"mapel_id=eq."+DM:"kode=not.is.null");adm();});}
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+home();requestAnimationFrame(loop);
+</script></body></html>
