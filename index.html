@@ -53,10 +53,11 @@ table{border-collapse:collapse;width:100%;font-size:13px}th{background:var(--in)
 pre{font-size:12px;white-space:pre-wrap;background:var(--in);padding:8px;border-radius:8px}
 .pj{flex:none;max-height:28vh;overflow:auto;background:#fff8dc;border:2px solid #fbbf24;border-radius:12px;padding:10px;font-size:13px;margin:6px 0}.pj button{margin-top:8px;padding:8px 18px;border:0;border-radius:10px;background:var(--ac);color:#fff;font-weight:700}
 tr.clk{cursor:pointer}.st-t{color:#15803d;font-weight:700}.st-r{color:#c2410c;font-weight:700}
+.ch{display:inline-block;width:36px;height:36px;border-radius:50%;margin:3px 4px;border:3px solid transparent;cursor:pointer}.ch.on{border-color:#f97316;transform:scale(1.15)}
 </style></head><body>
 <div id="app">
 <div id="pvb" style="display:none;justify-content:space-between;align-items:center;background:#fde68a;color:#5b4300;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700;margin-bottom:6px">👁 Pratinjau: jawaban tidak disimpan <button onclick="endPV()" style="border:0;border-radius:8px;padding:4px 10px;font-weight:700">Keluar</button></div>
-<div class="bar"><span id="no">Lv 1</span><span id="lf"></span><span id="tm"></span><span id="sc">Skor: 0</span></div>
+<div class="bar"><span id="no">Lv 1</span><span id="lf"></span><span id="tm" onclick="togSuara()" style="cursor:pointer;font-size:16px">🔊</span><span id="sc">Skor: 0</span></div>
 <div class="q" id="q">Memuat...</div>
 <div class="o" id="o"></div>
 <div class="cw" id="cw"><canvas id="c" width="320" height="300"></canvas></div>
@@ -99,6 +100,7 @@ async function home(err){PV=null;$("pvb").style.display="none";overlay(`<div cla
 <div id="kinfo" class="sub l" style="min-height:16px"></div>
 <div id="nmw">${nameField()}</div>
 <label>Token ujian</label><input id="t_k" value="${esc(LAST.t)}" autocapitalize="characters" autocomplete="off" placeholder="CONTOH: ABC123" style="text-transform:uppercase;letter-spacing:2px">
+<label>Pilih karakter</label><div class="ctr">${CHS.map((c,k)=>`<span class="ch ${k===CH?"on":""}" style="background:linear-gradient(180deg,${c.r} 42%,${c.b} 42%)" onclick="pilihCh(${k})"></span>`).join("")}</div>
 <div class="err">${esc(err)}</div>
 <div class="ctr"><button style="background:#f97316;font-size:18px;padding:12px 32px" onclick="mulai()">▶ Mulai</button><br><button class="s m" onclick="guru()">🔑 Masuk Guru</button>${isStd()?"":'<br><button class="s m" style="background:#fff7d6;border-color:#fbbf24;box-shadow:0 4px 0 #fbbf24" onclick="pasang()">📲 Pasang di layar utama</button>'}</div>
 <div class="sub" style="margin-top:10px">❤️ Nyawa terbatas • jalan ke jawaban yang benar<br>Design by Akhmad Fitra Harry, S.Pd</div>`);if(KODEK&&!(KODEK in ROSTERS))loadKelas();}
@@ -124,12 +126,13 @@ async function loadKelas(){
  const k=($("t_c").value||"").trim().toUpperCase(),inf=$("kinfo");KODEK=k;
  if(k.length<4){inf.textContent="";return;}
  inf.style.color="";inf.textContent="Memeriksa kode kelas...";
- try{const d=await rpc("kelas_info",{p_kode:k});ROSTERS[k]=d.siswa||[];try{localStorage.setItem("kode_kelas",k);}catch(e){}
+ try{const d=await rpc("kelas_info",{p_kode:k});if(d.galat)throw new Error(d.galat);ROSTERS[k]=d.siswa||[];try{localStorage.setItem("kode_kelas",k);}catch(e){}
   inf.style.color="var(--ok)";inf.textContent="✅ "+d.nama+(d.sekolah?" · "+d.sekolah:"");}
  catch(e){ROSTERS[k]=[];inf.style.color="var(--no)";inf.textContent="❌ "+e.message;}
  const nw=$("nmw");if(nw&&$("t_c")&&$("t_c").value.trim().toUpperCase()===k)nw.innerHTML=nameField();
 }
 async function mulai(){
+ ac();
  const kelas=($("t_c").value||"").trim().toUpperCase(),kode=$("t_k").value.trim().toUpperCase(),nama=$("t_n").value.trim();
  LAST={t:kode,n:nama};KODEK=kelas;
  if(!kelas)return home("Isi kode kelas dulu.");
@@ -138,8 +141,9 @@ async function mulai(){
  busy("Memuat soal...");
  try{
   const d=await rpc("mulai",{p_kelas:kelas,p_kode:kode,p_nama:nama});
+  if(d.galat)return home(d.galat);
   S={kode,mapel:d.mapel,nama:d.nama};LAST={t:"",n:""};
-  SOAL=d.soal;TOT=SOAL.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=d.nyawa>0?d.nyawa:Infinity;PV=null;
+  SOAL=d.soal;TOT=SOAL.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=d.nyawa>0?d.nyawa:Infinity;PV=null;ACT=true;KEL=0;
   let fin=false;
   if(d.lanjut){const sd=new Set(d.sudah);i=SOAL.findIndex(x=>!sd.has(x.id));correct=d.benar;got=d.got;if(d.nyawa>0)lives=d.nyawa-d.salah;fin=i<0||lives<=0;}
   $("ov").style.display="none";
@@ -149,12 +153,13 @@ async function mulai(){
 function load(){
  const s=SOAL[i];lock=false;res=null;resKey=null;P.x=152;P.y=240;
  const raw=[s.a,s.b,s.c,s.d].filter(x=>x!=null&&x!=="");
- ord=shuf(raw.map((_,k)=>k));pads=mkPads(raw.length);
+ const isi=s.tipe==="isian";ord=isi?[]:shuf(raw.map((_,k)=>k));pads=isi?[]:mkPads(raw.length);
  $("no").textContent="Soal "+(i+1)+"/"+SOAL.length;
  $("q").innerHTML=esc(s.tanya)+(s.gambar?`<img src="${s.gambar}" style="display:block;max-width:100%;max-height:90px;margin:4px auto 0;border-radius:8px">`:"");
- $("o").innerHTML=ord.map((oi,k)=>`<div style="border-color:${COL[k]}"><b>${LET[k]}.</b> ${esc(raw[oi])}</div>`).join("");
- $("m").textContent="Jalan ke kotak jawaban yang benar!";
+ $("o").innerHTML=isi?`<div style="grid-column:1/-1;display:flex;gap:6px"><input id="isi_t" autocomplete="off" placeholder="Ketik jawabanmu..." style="flex:1;min-width:0;font-size:16px;padding:8px 10px;border:2px solid var(--ac);border-radius:10px" onkeydown="if(event.key==='Enter')kirimIsian()"><button onclick="kirimIsian()" style="border:0;border-radius:10px;background:#f97316;color:#fff;font-weight:700;padding:0 14px">Kirim ▶</button></div>`:ord.map((oi,k)=>`<div style="border-color:${COL[k]}"><b>${LET[k]}.</b> ${esc(raw[oi])}</div>`).join("");
+ $("m").textContent=isi?"Ketik jawabanmu lalu tekan Kirim":"Jalan ke kotak jawaban yang benar!";
  hud();fit();
+ if(isi)setTimeout(()=>{const e=$("isi_t");if(e)e.focus();},200);
 }
 function fit(){const w=$("cw");if(!w||!w.clientHeight)return;const c=$("c"),x=Math.max(120,Math.floor(Math.min(w.clientWidth,w.clientHeight*320/300)));c.style.width=x+"px";c.style.height=Math.round(x*300/320)+"px";}
 function hud(){$("lf").textContent=lives===Infinity?"❤️ ∞":"❤️".repeat(Math.max(0,lives));$("sc").textContent=PV?"Skor: "+Math.round(100*got/TOT):"";}
@@ -162,8 +167,8 @@ async function answer(k){
  if(lock)return;lock=true;res=k;let r;
  try{
   r=PV?{kunci:SOAL[i].kunci,penjelasan:SOAL[i].penjelasan}:await rpc("cek2",{p_kode:S.kode,p_soal:SOAL[i].id,p_pilih:k<0?-1:ord[k]});resKey=ord.indexOf(r.kunci);
-  if(k===resKey){correct++;got+=SOAL[i].bobot||1;$("m").style.color="var(--ok)";$("m").textContent="✅ Benar! Hebat!";}
-  else{lives--;$("m").style.color="var(--no)";$("m").textContent=(k<0?"⏰ Waktu habis! ":"❌ Salah. ")+"Jawaban: "+LET[resKey];}
+  if(k===resKey){correct++;got+=SOAL[i].bobot||1;$("m").style.color="var(--ok)";$("m").textContent="✅ Benar! Hebat!";bunyi(true);}
+  else{lives--;$("m").style.color="var(--no)";$("m").textContent=(k<0?"⏰ Waktu habis! ":"❌ Salah. ")+"Jawaban: "+LET[resKey];bunyi(false);}
  }catch(e){$("m").textContent="Koneksi bermasalah, mencoba lagi...";res=null;setTimeout(()=>lock=false,1500);return;}
  hud();
  if(k!==resKey&&r.penjelasan){$("pj").innerHTML="<b>💡 Pembahasan:</b> "+esc(r.penjelasan)+'<div class="ctr"><button onclick="nextQ()">Lanjut ▶</button></div>';$("pj").style.display="block";return;}
@@ -173,7 +178,7 @@ function nextQ(){$("pj").style.display="none";$("m").style.color="";i++;(lives>0
 async function finish(){
  if(PV){lock=true;const n=Math.round(100*got/TOT),sa=PV.sid?"'"+PV.sid+"'":"null";
   overlay(`<div class="ctr"><h1>👁 Pratinjau selesai</h1><div class="sub">Hasil percobaan ini tidak disimpan.</div><div style="font-size:48px;font-weight:800">${n}</div><div class="sub">Benar ${correct} dari ${SOAL.length} soal</div><button onclick="preview('${PV.mid}',${sa})">↻ Coba lagi</button> <button class="s" onclick="endPV()">← Kembali ke soal</button></div>`);return;}
- lock=true;let r;
+ lock=true;ACT=false;let r;
  try{r=await rpc("selesai",{p_kode:S.kode});}catch(e){r=null;}
  const t=lives<=0?"💔 Nyawa habis!":"🎉 Selesai! Kerja bagus!";
  overlay(`<div class="ctr"><div style="font-size:56px">${lives<=0?"💪":"🏆"}</div><h1>${t}</h1><b>${esc(S.nama)}</b><div class="sub">${esc(S.mapel)}</div>
@@ -207,9 +212,9 @@ function draw(t){
  tree(14,130);tree(306,130);tree(14,200);tree(306,200);tree(14,270);tree(306,270);
  const b=Math.sin(t/300)*2;npc(40,150+b);npc(266,170-b);
  const px=P.x,py=P.y;
- g.fillStyle="rgba(0,0,0,.2)";g.fillRect(px,py+P.h-2,P.w,4);g.fillStyle="#2b2b4a";g.fillRect(px+1,py,14,8);
+ g.fillStyle="rgba(0,0,0,.2)";g.fillRect(px,py+P.h-2,P.w,4);g.fillStyle=CHS[CH].r;g.fillRect(px+1,py,14,8);
  g.fillStyle="#f1c9a0";g.fillRect(px+3,py+4,10,7);g.fillStyle="#000";g.fillRect(px+(P.f>0?9:4),py+6,2,2);
- g.fillStyle="#0f766e";g.fillRect(px+2,py+11,12,8);
+ g.fillStyle=CHS[CH].b;g.fillRect(px+2,py+11,12,8);
  g.fillStyle="#333";g.font="9px monospace";g.fillText((S.nama||"kamu").slice(0,10),px+8,py-3);
 }
 let last=0;
@@ -240,7 +245,7 @@ function vMapel(err){T(async()=>{
  const L=await db.sel("mapel","select=*,soal(count),token(count)&kelas_id=eq."+KL+"&order=created_at");
  overlay(`<h1>Mata pelajaran &amp; soal</h1><div class="sub">Setiap mapel punya soal, token, dan jadwal sendiri.</div>
  <input id="n_m" placeholder="Nama mata pelajaran baru"><button onclick="addMapel()">+ Tambah mapel</button><div class="err">${esc(err)}</div>
- ${L.map(m=>`<div class="card"><div class="top"><b>${esc(m.nama)}</b><span class="pill ${m.aktif?"":"x"}">${m.aktif?"Dibuka":"Ditutup"}</span></div>
+ ${L.map(m=>`<div class="card"><div class="top"><b>${esc(m.nama)} <a style="cursor:pointer;font-size:14px" onclick="vJadwal('${m.id}')">✏️</a></b><span class="pill ${m.aktif?"":"x"}">${m.aktif?"Dibuka":"Ditutup"}</span></div>
  <div class="sub l">${m.soal[0].count} soal · ${m.token[0].count} token · ❤️ ${m.nyawa>0?m.nyawa+" nyawa":"tanpa batas"}</div>
  <div class="sub l">Buka: ${fd(m.buka,"kapan saja")} · Tutup: ${fd(m.tutup,"tidak dibatasi")}</div>
  <button class="m" onclick="vSoal('${m.id}')">✏️ Soal</button><button class="m s" onclick="vJadwal('${m.id}')">⚙ Atur</button><button class="m s" onclick="vToken('${m.id}')">🎫 Token</button><button class="m s" onclick="vHasil('${m.id}')">📊 Hasil</button><button class="m s" onclick="hapus('${m.id}')">🗑️</button></div>`).join("")}
@@ -252,44 +257,52 @@ function hapus(id){if(confirm("Hapus mapel beserta soal, token, dan hasilnya?"))
 const hdr=(t,b)=>`<div class="hd"><button class="s m" onclick="${b}">‹ Kembali</button><h1>${t}</h1><button class="s m" onclick="home()">✕ Tutup</button></div>`;
 function readImg(file,max=800){return new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.7));};im.onerror=()=>no(new Error("Gambar tidak terbaca."));im.src=fr.result;};fr.readAsDataURL(file);});}
 function vSoal(id){T(async()=>{
- const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("soal","mapel_id=eq."+id+"&order=created_at&select=id,tanya,kunci,bobot");
- const bs=m.bobot_sama!==false;
+ const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("soal","mapel_id=eq."+id+"&order=created_at&select=id,tanya,kunci,bobot,tipe,a");
+ const bs=m.bobot_sama!==false,TT=m.jumlah_tampil>0?Math.min(m.jumlah_tampil,L.length):L.length;
  overlay(`${hdr("Soal: "+esc(m.nama),"vMapel()")}
  <button onclick="vForm('${id}')">+ Tambah soal</button>
  <button class="s" style="width:100%" onclick="vImpor('${id}')">📥 Impor dari berkas Word, PDF, foto</button>
  <button class="s" style="width:100%" onclick="preview('${id}')">▶ Coba soal (pratinjau)</button>
- <div class="sub l" style="margin:14px 0 6px;font-size:14px">${L.length} soal${bs&&L.length?" · tiap soal bernilai "+(+(100/L.length).toFixed(2))+" poin":""}. Siswa tidak pernah melihat kunci jawaban.</div>
- ${L.map((s,n)=>`<div class="it" style="align-items:flex-start"><span class="badge">${n+1}</span><span style="flex:1;font-size:14px">${esc(s.tanya)}<br><small style="opacity:.7">Kunci: <b>${LET[s.kunci]}</b>${bs?"":" · bobot "+s.bobot}</small></span><span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"><button class="m s" onclick="preview('${id}','${s.id}')">▶</button><button class="m s" onclick="vForm('${id}','${s.id}')">Ubah</button><button class="m s" onclick="delSoal('${s.id}','${id}')">Hapus</button></span></div>`).join("")}`);
+ <div class="sub l" style="margin:14px 0 6px;font-size:14px">${L.length} soal${bs&&L.length?" · tiap soal bernilai "+(+(100/TT).toFixed(2))+" poin":""}${m.jumlah_tampil>0&&m.jumlah_tampil<L.length?" · tiap siswa mendapat "+m.jumlah_tampil+" soal acak":""}. Siswa tidak pernah melihat kunci jawaban.</div>
+ ${L.map((s,n)=>`<div class="it" style="align-items:flex-start"><span class="badge">${n+1}</span><span style="flex:1;font-size:14px">${esc(s.tanya)}<br><small style="opacity:.7">${s.tipe==="isian"?"Isian · jawaban: <b>"+esc(s.a)+"</b>":"Kunci: <b>"+LET[s.kunci]+"</b>"}${bs?"":" · bobot "+s.bobot}</small></span><span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"><button class="m s" onclick="preview('${id}','${s.id}')">▶</button><button class="m s" onclick="vForm('${id}','${s.id}')">Ubah</button><button class="m s" onclick="delSoal('${s.id}','${id}')">Hapus</button></span></div>`).join("")}`);
 });}
 function vForm(mid,sid){T(async()=>{
- let s={tanya:"",a:"",b:"",c:"",d:"",kunci:0,bobot:1,gambar:null,penjelasan:""};
+ let s={tanya:"",tipe:"pg",a:"",b:"",c:"",d:"",kunci:0,bobot:1,gambar:null,penjelasan:""};
  if(sid){const r=await db.sel("soal","id=eq."+sid);s=r[0];}
  const bs=((await db.sel("mapel","id=eq."+mid))[0]||{}).bobot_sama!==false;
  window._img=s.gambar||null;window._kk=s.kunci;
- const n=sid?(s.d?4:3):4,gp=g=>g?`<img src="${g}" style="max-width:100%;max-height:140px;margin-top:6px;border-radius:8px"> <button class="m s" onclick="noImg()">Hapus gambar</button>`:"";
+ const isi=s.tipe==="isian",n=isi?"isi":(sid?(s.d?"4":s.c?"3":"2"):"4"),sel=v=>n===v?"selected":"";
+ const gp=g=>g?`<img src="${g}" style="max-width:100%;max-height:140px;margin-top:6px;border-radius:8px"> <button class="m s" onclick="noImg()">Hapus gambar</button>`:"";
  overlay(`${hdr(sid?"Ubah soal":"Tambah soal","vSoal('"+mid+"')")}
  <label>Pertanyaan</label><textarea id="f_q" style="min-height:90px">${esc(s.tanya)}</textarea>
  <label>Gambar (opsional)</label><input id="f_g" type="file" accept="image/*" onchange="pickImg(this)"><div id="f_gp">${gp(s.gambar)}</div>
- <label>Jumlah pilihan</label><select id="f_n" onchange="optN()"><option value="3" ${n===3?"selected":""}>3 pilihan (A, B, C)</option><option value="4" ${n===4?"selected":""}>4 pilihan (A, B, C, D)</option></select>
- <label>Pilihan A</label><input id="f_a" value="${esc(s.a)}"><label>Pilihan B</label><input id="f_b" value="${esc(s.b)}"><label>Pilihan C</label><input id="f_c" value="${esc(s.c)}">
- <div id="f_dw"><label>Pilihan D</label><input id="f_d" value="${esc(s.d)}"></div>
- <div class="g2"><div><label>Kunci jawaban</label><select id="f_k"></select></div><div style="${bs?"display:none":""}"><label>Bobot</label><input id="f_w" type="number" min="1" value="${s.bobot}"></div></div>
+ <label>Tipe soal</label><select id="f_n" onchange="optN()"><option value="4" ${sel("4")}>Pilihan ganda 4 (A, B, C, D)</option><option value="3" ${sel("3")}>Pilihan ganda 3 (A, B, C)</option><option value="2" ${sel("2")}>Benar / Salah</option><option value="isi" ${sel("isi")}>Isian singkat</option></select>
+ <div id="f_pg"><label>Pilihan A</label><input id="f_a" value="${esc(isi?"":s.a)}"><label>Pilihan B</label><input id="f_b" value="${esc(s.b)}">
+ <div id="f_cw"><label>Pilihan C</label><input id="f_c" value="${esc(s.c)}"></div><div id="f_dw"><label>Pilihan D</label><input id="f_d" value="${esc(s.d)}"></div>
+ <label>Kunci jawaban</label><select id="f_k"></select></div>
+ <div id="f_is"><label>Jawaban benar</label><input id="f_ai" value="${esc(isi?s.a:"")}"><div class="sub l">Jika ada beberapa jawaban yang dianggap benar, pisahkan dengan tanda | (contoh: Jakarta | DKI Jakarta). Huruf besar atau kecil tidak dibedakan.</div></div>
+ <div style="${bs?"display:none":""}"><label>Bobot</label><input id="f_w" type="number" min="1" value="${s.bobot}"></div>
  ${bs?'<div class="sub l">Bobot semua soal sama (otomatis). Ubah di ⚙ Atur jika perlu.</div>':""}
  <label>Pembahasan (opsional)</label><textarea id="f_p" style="min-height:70px">${esc(s.penjelasan)}</textarea><div class="sub l">Ditampilkan ke siswa setelah menjawab salah.</div>
  <div class="ctr"><button onclick="saveSoal('${mid}','${sid||""}')">Simpan soal</button></div>`);
  optN();
 });}
-function optN(){const n=+$("f_n").value;$("f_dw").style.display=n===4?"":"none";const cur=$("f_k").value!==""?+$("f_k").value:(window._kk||0);
- $("f_k").innerHTML=LET.slice(0,n).split("").map((x,k)=>`<option value="${k}" ${k===Math.min(cur,n-1)?"selected":""}>${x}</option>`).join("");}
+function optN(){const v=$("f_n").value,isi=v==="isi",n=isi?0:+v;
+ $("f_pg").style.display=isi?"none":"";$("f_is").style.display=isi?"":"none";
+ $("f_cw").style.display=n>=3?"":"none";$("f_dw").style.display=n>=4?"":"none";
+ if(n===2&&!$("f_a").value&&!$("f_b").value){$("f_a").value="Benar";$("f_b").value="Salah";}
+ const m=Math.max(n,2),cur=$("f_k").value!==""?+$("f_k").value:(window._kk||0);
+ $("f_k").innerHTML=LET.slice(0,m).split("").map((x,k)=>`<option value="${k}" ${k===Math.min(cur,m-1)?"selected":""}>${x}</option>`).join("");}
 async function pickImg(el){const f=el.files[0];if(!f)return;try{window._img=await readImg(f);$("f_gp").innerHTML=`<img src="${window._img}" style="max-width:100%;max-height:140px;margin-top:6px;border-radius:8px"> <button class="m s" onclick="noImg()">Hapus gambar</button>`;}catch(e){alert(e.message);}}
 function noImg(){window._img=null;$("f_gp").innerHTML="";$("f_g").value="";}
 function saveSoal(mid,sid){
- const v=k=>$(k).value.trim(),n=+$("f_n").value;
- const r={tanya:v("f_q"),a:v("f_a"),b:v("f_b"),c:v("f_c"),d:n===4?v("f_d"):null,kunci:+$("f_k").value,bobot:Math.max(1,+$("f_w").value||1),gambar:window._img||null,penjelasan:v("f_p")||null};
- if(!r.tanya||!r.a||!r.b||!r.c||(n===4&&!r.d))return alert("Lengkapi pertanyaan dan semua pilihan.");
+ const v=k=>$(k).value.trim(),t=$("f_n").value,isi=t==="isi",n=isi?0:+t;
+ const r={tanya:v("f_q"),tipe:isi?"isian":"pg",a:isi?v("f_ai"):v("f_a"),b:isi?null:v("f_b"),c:n>=3?v("f_c"):null,d:n>=4?v("f_d"):null,
+  kunci:isi?0:+$("f_k").value,bobot:Math.max(1,+$("f_w").value||1),gambar:window._img||null,penjelasan:v("f_p")||null};
+ if(!r.tanya||!r.a||(!isi&&!r.b)||(n>=3&&!r.c)||(n>=4&&!r.d))return alert("Lengkapi pertanyaan dan jawaban/pilihan.");
  T(async()=>{if(sid)await db.upd("soal","id=eq."+sid,r);else await db.ins("soal",[{...r,mapel_id:mid}]);vSoal(mid);});
 }
-function preview(mid,sid){T(async()=>{
+function preview(mid,sid){ac();T(async()=>{
  const [m]=await db.sel("mapel","id=eq."+mid);
  let L=await db.sel("soal","mapel_id=eq."+mid+(sid?"&id=eq."+sid:"")+"&order=created_at");
  if(!L.length)return alert("Belum ada soal.");
@@ -367,32 +380,46 @@ function simpanImpor(id){T(async()=>{await db.ins("soal",window._ok);vSoal(id);}
 function vJadwal(id){T(async()=>{
  const [m]=await db.sel("mapel","id=eq."+id);
  overlay(`${hdr("Pengaturan: "+esc(m.nama),"vMapel()")}
+ <label>Nama mata pelajaran</label><input id="j_nm" value="${esc(m.nama)}">
  <label>Status</label><select id="j_a"><option value="true" ${m.aktif?"selected":""}>Dibuka</option><option value="false" ${m.aktif?"":"selected"}>Ditutup</option></select>
  <label>Buka (kosong = kapan saja)</label><input id="j_b" type="datetime-local" value="${loc(m.buka)}">
  <label>Tutup (kosong = tidak dibatasi)</label><input id="j_t" type="datetime-local" value="${loc(m.tutup)}">
  <label>❤️ Jumlah nyawa (hati)</label><input id="j_n" type="number" min="0" max="10" value="${m.nyawa==null?3:m.nyawa}">
  <div class="sub l">Nyawa berkurang setiap jawaban salah. Jika habis, asesmen berhenti. Isi 0 untuk nyawa tanpa batas.</div>
+ <label>🎲 Jumlah soal per siswa</label><input id="j_jt" type="number" min="0" value="${m.jumlah_tampil||0}">
+ <div class="sub l">0 = semua soal. Isi lebih kecil dari jumlah soal di bank agar tiap siswa mendapat kumpulan soal acak yang berbeda.</div>
  <label>⚖️ Bobot soal</label><select id="j_w"><option value="true" ${m.bobot_sama!==false?"selected":""}>Sama rata (otomatis)</option><option value="false" ${m.bobot_sama===false?"selected":""}>Atur per soal</option></select>
  <div class="sub l">Sama rata: semua soal bernilai sama, tidak perlu mengisi bobot satu per satu.</div>
  <label>🎯 KKM (batas nilai tuntas)</label><input id="j_k" type="number" min="0" max="100" value="${m.kkm==null?70:m.kkm}">
  <div class="sub l">Siswa dengan nilai di bawah KKM diberi label Remedial di hasil.</div>
  <div class="ctr"><button onclick="saveJ('${id}')">Simpan</button></div>`);
 });}
-function saveJ(id){const b=$("j_b").value,t=$("j_t").value,n=Math.max(0,Math.min(10,parseInt($("j_n").value,10)||0));
- T(async()=>{await db.upd("mapel","id=eq."+id,{aktif:$("j_a").value==="true",buka:b?new Date(b).toISOString():null,tutup:t?new Date(t).toISOString():null,nyawa:n,kkm:Math.max(0,Math.min(100,parseInt($("j_k").value,10)||0)),bobot_sama:$("j_w").value==="true"});vMapel();});}
+function saveJ(id){const nm=$("j_nm").value.trim();if(!nm)return alert("Nama mapel tidak boleh kosong.");const b=$("j_b").value,t=$("j_t").value,n=Math.max(0,Math.min(10,parseInt($("j_n").value,10)||0));
+ T(async()=>{await db.upd("mapel","id=eq."+id,{nama:nm,jumlah_tampil:Math.max(0,parseInt($("j_jt").value,10)||0),aktif:$("j_a").value==="true",buka:b?new Date(b).toISOString():null,tutup:t?new Date(t).toISOString():null,nyawa:n,kkm:Math.max(0,Math.min(100,parseInt($("j_k").value,10)||0)),bobot_sama:$("j_w").value==="true"});vMapel();});}
 function vToken(id){T(async()=>{
- const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("token","mapel_id=eq."+id+"&select=kode,dipakai");
- overlay(`<h1>🎫 ${esc(m.nama)}</h1><div class="sub">${L.length} token · ${L.filter(x=>x.dipakai).length} sudah dipakai</div>
+ const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("token","mapel_id=eq."+id+"&select=kode,pemilik,dipakai"),R=await all("siswa","select=nama&kelas_id=eq."+KL+"&order=nama");
+ const has=new Set(L.map(x=>(x.pemilik||"").toLowerCase())),baru=R.filter(x=>!has.has(x.nama.toLowerCase()));
+ overlay(`<h1>🎫 ${esc(m.nama)}</h1><div class="sub">${L.length} token · ${L.filter(x=>x.pemilik).length} bernama · ${L.filter(x=>x.dipakai).length} sudah dipakai</div>
  <div class="sub l">Kode token hanya tampil di Kartu token (PDF) pada dasbor.</div>
- <label>Jumlah token yang dibuat</label><input id="k_n" type="number" min="1" value="30">
- <button class="m" onclick="mkToken('${id}')">🎫 Buat token</button><button class="m s" onclick="delTk('${id}')">Hapus semua token</button>${back}`);
+ <div class="card"><b style="font-size:14px">👥 Token bernama (per siswa)</b>
+ <div class="sub l">Satu token untuk tiap siswa di daftar kelas, dan namanya tercetak di kartu. Token hanya bisa dipakai oleh pemiliknya. ${R.length?`Ada <b>${baru.length}</b> siswa yang belum punya token.`:"Daftar siswa kelas masih kosong. Isi dulu lewat Daftar siswa di dasbor."}</div>
+ <button class="m" ${baru.length?"":"disabled"} onclick="mkTokenNama('${id}')">👥 Buat token untuk ${baru.length} siswa</button></div>
+ <div class="card"><b style="font-size:14px">🎫 Token tanpa nama</b><label>Jumlah token</label><input id="k_n" type="number" min="1" value="10"><button class="m" onclick="mkToken('${id}')">Buat token</button></div>
+ <div class="ctr"><button class="m s" onclick="delTk('${id}')">Hapus semua token</button></div>${back}`);
 });}
 function mkToken(id){
  const n=Math.min(500,+$("k_n").value||0);if(!n)return;
- const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",rc=()=>Array.from(crypto.getRandomValues(new Uint8Array(6)),x=>A[x%32]).join("");
- const rows=Array.from({length:n},()=>({kode:rc(),mapel_id:id}));
+ const rows=Array.from({length:n},()=>({kode:rcode(),mapel_id:id}));
  T(async()=>{await db.ins("token",rows);vToken(id);});
 }
+function mkTokenNama(id){T(async()=>{
+ const L=await db.sel("token","mapel_id=eq."+id+"&select=pemilik"),R=await all("siswa","select=nama&kelas_id=eq."+KL+"&order=nama");
+ const has=new Set(L.map(x=>(x.pemilik||"").toLowerCase())),baru=R.filter(x=>!has.has(x.nama.toLowerCase()));
+ if(!baru.length)return alert("Semua siswa sudah punya token.");
+ const used=new Set(),rows=baru.map(x=>{let k;do{k=rcode();}while(used.has(k));used.add(k);return{kode:k,mapel_id:id,pemilik:x.nama};});
+ for(let n=0;n<rows.length;n+=200)await db.ins("token",rows.slice(n,n+200));
+ vToken(id);
+});}
 function delTk(id){if(confirm("Hapus semua token mapel ini?"))T(async()=>{await db.del("token","mapel_id=eq."+id);vToken(id);});}
 function vHasil(id){T(async()=>{
  const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("hasil","mapel_id=eq."+id+"&order=nilai.desc,nama");
@@ -419,21 +446,21 @@ const dl=(n,b)=>{const a=document.createElement("a");a.href=URL.createObjectURL(
 const mNama=()=>(DATA.m.find(x=>x.id===DM)||{}).nama||"";
 const kk=x=>(x.mapel&&x.mapel.kkm!=null)?x.mapel.kkm:70;
 const rowsF=()=>DATA.h.filter(x=>(!DM||x.mapel_id===DM)&&(!DQ||(x.nama||"").toLowerCase().includes(DQ))&&(DS==="T"?x.nilai>=kk(x):DS==="R"?x.nilai<kk(x):true));
-const HEAD=["No","Nama","Mapel","Token","Benar","Salah","Nilai","Status"];
-const rowsX=()=>rowsF().map((x,n)=>[n+1,x.nama||"",(x.mapel&&x.mapel.nama)||"",x.kode,x.benar,x.total-x.benar,x.nilai,x.nilai>=kk(x)?"Tuntas":"Remedial"]);
+const HEAD=["No","Nama","Mapel","Token","Benar","Salah","Nilai","Status","Keluar"];
+const rowsX=()=>rowsF().map((x,n)=>[n+1,x.nama||"",(x.mapel&&x.mapel.nama)||"",x.kode,x.benar,x.total-x.benar,x.nilai,x.nilai>=kk(x)?"Tuntas":"Remedial",x.keluar||0]);
 async function adm(err){
  busy("Memuat...");
  try{
-  const [m,h,kl,tk]=await Promise.all([db.sel("mapel","select=id,nama&kelas_id=eq."+KL+"&order=created_at"),all("hasil","select=*,mapel!inner(nama,kkm,kelas_id)&mapel.kelas_id=eq."+KL+"&order=created_at.desc"),db.sel("kelas","id=eq."+KL),db.sel("token","dipakai=eq.true&select=kode,nama,mapel!inner(nama,kelas_id)&mapel.kelas_id=eq."+KL+"&order=kode")]);
+  const [m,h,kl,tk]=await Promise.all([db.sel("mapel","select=id,nama&kelas_id=eq."+KL+"&order=created_at"),all("hasil","select=*,mapel!inner(nama,kkm,kelas_id)&mapel.kelas_id=eq."+KL+"&order=created_at.desc"),db.sel("kelas","id=eq."+KL),db.sel("token","dipakai=eq.true&selesai=eq.false&select=kode,nama,terjawab,jumlah,keluar,mapel!inner(nama,kelas_id)&mapel.kelas_id=eq."+KL+"&order=kode")]);
   KLO=kl[0];if(!KLO){KL=null;return kelasList();}
   const done=new Set(h.map(x=>x.kode));
-  DATA={m,h,cfg:{sekolah:KLO.sekolah||"",kelas:KLO.nama||"",tahun:KLO.tahun||""},live:tk.filter(x=>!done.has(x.kode))};
+  DATA={m,h,cfg:{sekolah:KLO.sekolah||"",kelas:KLO.nama||"",tahun:KLO.tahun||""},live:tk};
  }catch(e){if(/jwt|expired/i.test(e.message)){tok=null;return guru("Sesi habis, masuk lagi.");}err=e.message;}
  dash(err);
 }
 function dash(err){
  overlay(`<h1>Dasbor Guru</h1><div class="ctr"><span class="pill" style="font-size:14px">Kode kelas: <b style="letter-spacing:2px">${esc(KLO.kode)}</b></span><br><button class="m s" onclick="copy(KLO.kode)">📋 Salin kode</button><button class="m s" onclick="gantiKelas()">🏫 Ganti kelas</button></div><div class="sub">${esc([DATA.cfg.sekolah,DATA.cfg.kelas,DATA.cfg.tahun].filter(Boolean).join(" • "))}</div>
- <div class="card" style="margin:8px 0;border-style:dashed">${DATA.live.length?`<b style="font-size:13px">Sedang mengerjakan (${DATA.live.length})</b>`+DATA.live.map(x=>`<div class="it"><span>${esc(x.nama)} <small>· ${esc(x.mapel&&x.mapel.nama)}</small></span><button class="m s" onclick="doReset('${x.kode}')">↺ Reset</button></div>`).join(""):`<div class="sub" style="margin:0">Belum ada siswa yang sedang mengerjakan.</div>`}</div>
+ <div class="card" style="margin:8px 0;border-style:dashed">${DATA.live.length?`<b style="font-size:13px">Sedang mengerjakan (${DATA.live.length})</b>`+DATA.live.map(x=>`<div class="it"><span>${esc(x.nama)} <small>· ${esc(x.mapel&&x.mapel.nama)}</small><br><small>Soal ${x.terjawab||0}/${x.jumlah||0}${x.keluar?` · <b style="color:var(--no)">keluar halaman ${x.keluar}×</b>`:""}</small></span><button class="m s" onclick="doReset('${x.kode}')">↺ Reset</button></div>`).join(""):`<div class="sub" style="margin:0">Belum ada siswa yang sedang mengerjakan.</div>`}</div>
  <div class="g2"><button onclick="vMapel()">📚 Mapel &amp; Soal</button><button class="s" onclick="vSiswa()">👥 Daftar siswa</button><button class="s" onclick="vBackup()">💾 Cadangan</button><button class="s" onclick="vCfg()">⚙ Pengaturan kelas</button></div>
  <select id="d_m" onchange="DM=this.value;dash()"><option value="">Semua mata pelajaran</option>${DATA.m.map(m=>`<option value="${m.id}" ${DM===m.id?"selected":""}>${esc(m.nama)}</option>`).join("")}</select>
  <select id="d_s" onchange="DS=this.value;tbl()"><option value="">Semua status</option><option value="T" ${DS==="T"?"selected":""}>Tuntas</option><option value="R" ${DS==="R"?"selected":""}>Remedial</option></select>
@@ -442,21 +469,25 @@ function dash(err){
  <button class="m o" onclick="X(expPDF)">Unduh PDF</button><button class="m" onclick="X(expXLS)">Unduh Excel</button><button class="m s" onclick="expCSV()">Unduh CSV</button><button class="m s" onclick="copy(rowsF().filter(x=>x.nilai<kk(x)).map(x=>x.nama).join('\n')||'Tidak ada siswa remedial')">📋 Salin daftar remedial</button>
  <div id="sm" class="sub l" style="margin-top:8px"></div><div class="tw"><table id="tb"></table></div>
  <label>RESET TOKEN AGAR BISA DIPAKAI ULANG</label><input id="d_r" placeholder="Kode token" style="text-transform:uppercase"><button class="s m" onclick="resetKode()">Reset token</button>
- <div class="card zona"><b style="letter-spacing:1px;font-size:13px">ZONA HAPUS DATA</b><div class="sub l">Berlaku untuk mapel yang dipilih di atas (${esc(DM?mNama():"semua mapel")}).</div>
- <button class="m s" onclick="zona('hasil')">Hapus hasil</button><button class="m s" onclick="zona('token')">Hapus token</button><button class="m s" onclick="zona('all')">Hapus SEMUA data</button></div>
+ <div class="card zona"><b style="letter-spacing:1px;font-size:13px">ZONA HAPUS DATA</b>
+ <div class="sub l">Berlaku untuk: <b>${esc(DM?mNama():"semua mapel kelas ini")}</b>. Data yang dihapus tidak dapat dikembalikan.</div>
+ <select id="z_op"><option value="nilai">Hapus semua nilai</option><option value="token">Reset semua token (bisa dipakai lagi)</option><option value="soal">Kosongkan semua soal</option><option value="all">Hapus SEMUA (nilai + reset token + kosongkan soal)</option></select>
+ <button class="m" style="background:#b91c1c;margin-top:10px" onclick="zona()">Hapus</button></div>
  <div class="err">${esc(err)}</div><div class="ctr"><button class="s" onclick="home()">← Ke layar siswa</button></div>`);
  tbl();
 }
 function tbl(){
  const F=rowsF(),R=rowsX(),t=F.filter(x=>x.nilai>=kk(x)).length,av=F.length?Math.round(F.reduce((a,x)=>a+x.nilai,0)/F.length):0;
  $("sm").textContent=F.length?F.length+" selesai · "+t+" tuntas · "+(F.length-t)+" remedial · rata-rata "+av:"";
- $("tb").innerHTML="<tr>"+HEAD.map(h=>`<th>${h}</th>`).join("")+"</tr>"+(R.length?R.map(r=>`<tr class="clk" onclick="vDetail('${esc(r[3])}')">`+r.map((c,k)=>k===7?`<td class="${c==="Tuntas"?"st-t":"st-r"}">${c}</td>`:`<td>${esc(c)}</td>`).join("")+"</tr>").join(""):`<tr><td colspan="8" style="text-align:center;opacity:.7">Belum ada hasil</td></tr>`);}
+ $("tb").innerHTML="<tr>"+HEAD.map(h=>`<th>${h}</th>`).join("")+"</tr>"+(R.length?R.map(r=>`<tr class="clk" onclick="vDetail('${esc(r[3])}')">`+r.map((c,k)=>k===7?`<td class="${c==="Tuntas"?"st-t":"st-r"}">${c}</td>`:`<td>${esc(c)}</td>`).join("")+"</tr>").join(""):`<tr><td colspan="9" style="text-align:center;opacity:.7">Belum ada hasil</td></tr>`);}
 function vDetail(k){T(async()=>{
- const [h]=await db.sel("hasil","kode=eq."+k+"&select=*,mapel(nama,kkm)"),L=await db.sel("jawaban","kode=eq."+k+"&select=pilih,benar,soal(tanya,a,b,c,d,kunci)");
+ const [h]=await db.sel("hasil","kode=eq."+k+"&select=*,mapel(nama,kkm)"),L=await db.sel("jawaban","kode=eq."+k+"&select=pilih,benar,teks,soal(tanya,a,b,c,d,kunci,tipe)");
  const st=h.nilai>=kk(h)?"Tuntas":"Remedial";
  overlay(`<h1>${esc(h.nama)}</h1><div class="sub">${esc(h.mapel&&h.mapel.nama)} · Nilai <b>${h.nilai}</b> · <b class="${st==="Tuntas"?"st-t":"st-r"}">${st}</b> (KKM ${kk(h)})</div>
- <div class="sub l">${h.benar} benar dari ${h.total} soal${L.length<h.total?` · ${h.total-L.length} soal belum terjawab`:""}</div>
- ${L.sort((a,b)=>a.benar-b.benar).map(x=>{const o=x.soal?[x.soal.a,x.soal.b,x.soal.c,x.soal.d]:[];return `<div class="it" style="align-items:flex-start"><span class="badge" style="${x.benar?"":"background:var(--no)"}">${x.benar?"✔":"✖"}</span><span style="flex:1;font-size:13px">${esc(x.soal&&x.soal.tanya)}<br><small>Jawaban siswa: <b>${x.pilih<0?"tidak menjawab":LET[x.pilih]+". "+esc(o[x.pilih])}</b>${x.benar?"":` · Kunci: <b>${x.soal?LET[x.soal.kunci]+". "+esc(o[x.soal.kunci]):""}</b>`}</small></span></div>`;}).join("")}
+ <div class="sub l">${h.benar} benar dari ${h.total} soal${L.length<h.total?` · ${h.total-L.length} soal belum terjawab`:""}${h.keluar?` · <b style="color:var(--no)">keluar halaman ${h.keluar}×</b>`:""}</div>
+ ${L.sort((a,b)=>a.benar-b.benar).map(x=>{const so=x.soal||{},isi=so.tipe==="isian",o=[so.a,so.b,so.c,so.d];
+  const js=isi?esc(x.teks||"(kosong)"):(x.pilih<0?"tidak menjawab":LET[x.pilih]+". "+esc(o[x.pilih])),kc=isi?esc((so.a||"").split("|")[0].trim()):(LET[so.kunci]+". "+esc(o[so.kunci]));
+  return `<div class="it" style="align-items:flex-start"><span class="badge" style="${x.benar?"":"background:var(--no)"}">${x.benar?"✔":"✖"}</span><span style="flex:1;font-size:13px">${esc(so.tanya)}<br><small>Jawaban siswa: <b>${js}</b>${x.benar?"":` · Kunci: <b>${kc}</b>`}</small></span></div>`;}).join("")}
  <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
 });}
 function expCSV(){const q=v=>'"'+String(v).replace(/"/g,'""')+'"';dl("hasil.csv",new Blob(["\ufeff"+[HEAD,...rowsX()].map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"}));}
@@ -474,11 +505,11 @@ function kartuPick(){T(async()=>{
 async function kartu(mid){
  const uo=$("k_u")&&$("k_u").checked;await need("pdf");
  const mp=(DATA.m.find(x=>x.id===mid)||{}).nama||"";
- const L=await all("token","select=kode,nama&mapel_id=eq."+mid+(uo?"&dipakai=eq.false":"")+"&order=kode");
+ const L=await all("token","select=kode,pemilik&mapel_id=eq."+mid+(uo?"&dipakai=eq.false":"")+"&order=pemilik,kode");
  if(!L.length)return alert("Tidak ada token untuk dicetak.");
  const d=new window.jspdf.jsPDF(),link=linkSiswa(),sek=[DATA.cfg.sekolah,DATA.cfg.kelas].filter(Boolean).join(" • ");
  L.forEach((t,n)=>{if(n&&n%10===0)d.addPage();const k=n%10,x=10+(k%2)*95,y=10+Math.floor(k/2)*55;
-  d.rect(x,y,90,50);d.setFontSize(8);d.text(sek,x+4,y+7);d.setFontSize(13);d.text(t.nama||"Nama: ...............",x+4,y+17);
+  d.rect(x,y,90,50);d.setFontSize(8);d.text(sek,x+4,y+7);d.setFontSize(13);d.text(t.pemilik||"Nama: ...............",x+4,y+17);
   d.setFontSize(10);d.text(mp,x+4,y+23);d.setFontSize(9);d.text("Kode kelas: "+(KLO?KLO.kode:""),x+4,y+29);d.setFontSize(22);d.text(t.kode,x+4,y+40);d.setFontSize(7);d.text(link,x+4,y+47);});
  d.save("kartu-token-"+(mp.replace(/[^A-Za-z0-9]+/g,"-")||"mapel")+".pdf");}
 function vAnalisis(){if(!DM)return alert("Pilih mata pelajaran dulu.");T(async()=>{
@@ -489,7 +520,7 @@ function vAnalisis(){if(!DM)return alert("Pilih mata pelajaran dulu.");T(async()
 });}
 function vSiswa(){T(async()=>{
  const L=await all("siswa","select=nama&kelas_id=eq."+KL+"&order=nama");
- overlay(`<h1>👥 Daftar siswa kelas</h1><div class="sub l" style="line-height:1.5">Isi satu nama per baris. Jika daftar diisi, siswa memilih namanya dari daftar dan hanya bisa memakai satu token per mata pelajaran. Kosongkan jika siswa boleh mengetik sendiri.</div>
+ overlay(`<h1>👥 Daftar siswa kelas</h1><div class="sub l" style="line-height:1.5">Isi satu nama per baris. Jika daftar diisi, siswa memilih namanya dari daftar dan hanya bisa memakai satu token per mata pelajaran. Kosongkan jika siswa boleh mengetik sendiri. Token bernama untuk tiap siswa dibuat di Mapel &amp; Soal › 🎫 Token.</div>
  <textarea id="s_l" style="min-height:260px">${esc(L.map(x=>x.nama).join("\n"))}</textarea><div class="sub l">${L.length} siswa tersimpan</div>
  <button onclick="saveSiswa()">Simpan daftar</button><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
 });}
@@ -501,9 +532,38 @@ function vBackup(){overlay(`<h1>💾 Cadangan</h1><div class="sub">Simpan semua 
  <div class="ctr"><button class="s m" onclick="X(rs)">Pulihkan</button></div><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);}
 function resetKode(){const k=$("d_r").value.trim().toUpperCase();if(!k)return;
  T(async()=>{if(!(await db.sel("token","kode=eq."+k+"&select=kode")).length)return alert("Token tidak ditemukan.");
- await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,nama:null,jumlah:0});alert("Token "+k+" direset.");adm();});}
-function doReset(k){if(confirm("Reset agar siswa ini bisa mengulang?"))T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,nama:null,jumlah:0});adm();});}
+ await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});alert("Token "+k+" direset.");adm();});}
+function doReset(k){if(confirm("Reset agar siswa ini bisa mengulang?"))T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});adm();});}
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+/* ===== Efek suara/getar, karakter, anti-curang, soal isian ===== */
+let SUARA=(()=>{try{return localStorage.getItem("suara")!=="0";}catch(e){return true;}})();
+let AC=null,ACT=false,KEL=0;
+const ac=()=>{try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();}catch(e){}};
+function nada(f,t,d,tp){if(!SUARA||!AC)return;try{const o=AC.createOscillator(),g=AC.createGain(),n=AC.currentTime+t;o.type=tp||"sine";o.frequency.value=f;g.gain.setValueAtTime(.18,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(AC.destination);o.start(n);o.stop(n+d);}catch(e){}}
+function bunyi(ok){if(!SUARA)return;if(ok){nada(660,0,.12);nada(880,.12,.18);}else nada(180,0,.3,"sawtooth");try{if(navigator.vibrate)navigator.vibrate(ok?40:[90,50,90]);}catch(e){}}
+function togSuara(){SUARA=!SUARA;try{localStorage.setItem("suara",SUARA?"1":"0");}catch(e){}$("tm").textContent=SUARA?"🔊":"🔇";ac();if(SUARA)nada(660,0,.1);}
+$("tm").textContent=SUARA?"🔊":"🔇";
+const CHS=[{b:"#0d9488",r:"#2b2b4a"},{b:"#ef4444",r:"#5a3a22"},{b:"#3b82f6",r:"#111111"},{b:"#f59e0b",r:"#7a4a21"},{b:"#a855f7",r:"#2b2b4a"},{b:"#ec4899",r:"#111111"}];
+let CH=(()=>{try{return Math.min(5,Math.max(0,+localStorage.getItem("karakter")||0));}catch(e){return 0;}})();
+function pilihCh(k){CH=k;try{localStorage.setItem("karakter",k);}catch(e){}document.querySelectorAll(".ch").forEach((e,n)=>e.classList.toggle("on",n===k));}
+document.addEventListener("visibilitychange",()=>{
+ if(!ACT||PV)return;
+ if(document.hidden){KEL++;rpc("catat_keluar",{p_kode:S.kode}).catch(()=>{});}
+ else if(KEL>0){$("m").style.color="var(--no)";$("m").textContent="⚠️ Jangan tinggalkan halaman saat asesmen. Gurumu bisa melihat ini.";}
+});
+async function kirimIsian(){
+ if(lock)return;const t=($("isi_t")&&$("isi_t").value||"").trim();if(!t)return;
+ lock=true;res=-2;resKey=null;let r;
+ try{
+  if(PV){const ak=(SOAL[i].a||"").split("|").map(x=>x.trim().toLowerCase().replace(/\s+/g," "));r={benar:ak.includes(t.toLowerCase().replace(/\s+/g," ")),kunci:(SOAL[i].a||"").split("|")[0].trim(),penjelasan:SOAL[i].penjelasan};}
+  else r=await rpc("cek_isian",{p_kode:S.kode,p_soal:SOAL[i].id,p_teks:t});
+ }catch(e){$("m").textContent="Koneksi bermasalah, mencoba lagi...";setTimeout(()=>lock=false,1500);return;}
+ if(r.benar){correct++;got+=SOAL[i].bobot||1;$("m").style.color="var(--ok)";$("m").textContent="✅ Benar! Hebat!";bunyi(true);}
+ else{lives--;$("m").style.color="var(--no)";$("m").textContent="❌ Kurang tepat. Jawaban: "+r.kunci;bunyi(false);}
+ hud();
+ if(!r.benar&&r.penjelasan){$("pj").innerHTML="<b>💡 Pembahasan:</b> "+esc(r.penjelasan)+'<div class="ctr"><button onclick="nextQ()">Lanjut ▶</button></div>';$("pj").style.display="block";return;}
+ setTimeout(nextQ,1500);
+}
 /* ===== Kelas: banyak kelas dengan kode kelas ===== */
 let KL=null,KLO=null;
 const rcode=()=>Array.from(crypto.getRandomValues(new Uint8Array(6)),x=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x%32]).join("");
@@ -544,12 +604,20 @@ async function rs(){const f=$("b_f").files[0];if(!f)return alert("Pilih file cad
  const o=JSON.parse(await f.text());
  for(const t of["kelas","mapel","siswa","soal","token","hasil"]){let r=o[t]||[];if(t==="kelas")r=r.map(({owner,...x})=>x);for(let n=0;n<r.length;n+=300)await db.ins(t,r.slice(n,n+300),{Prefer:"resolution=merge-duplicates"});}
  alert("Pemulihan selesai.");adm();}
-function zona(j){
- const ids=(DM?[DM]:DATA.m.map(x=>x.id)).join(",");
- if(j==="all"){if(prompt("Ketik HAPUS untuk menghapus SEMUA mapel, soal, token, dan hasil kelas ini:")!=="HAPUS")return;T(async()=>{await db.del("mapel","kelas_id=eq."+KL);DM="";adm();});return;}
- if(!ids)return alert("Belum ada mapel.");
- if(!confirm((j==="hasil"?"Hapus hasil ":"Hapus semua token ")+(DM?mNama():"SEMUA mapel kelas ini")+"?"))return;
- T(async()=>{await db.del(j==="hasil"?"hasil":"token","mapel_id=in.("+ids+")");adm();});}
+function zona(){
+ const op=$("z_op").value,ids=DM?[DM]:DATA.m.map(x=>x.id),nm=DM?mNama():"SEMUA mapel kelas ini";
+ if(!ids.length)return alert("Belum ada mapel.");
+ const lbl={nilai:"menghapus SEMUA NILAI",token:"mereset SEMUA TOKEN (jawaban dan progres siswa dihapus, token bisa dipakai lagi)",soal:"mengosongkan SEMUA SOAL",all:"menghapus SEMUA: nilai, reset token, dan kosongkan soal"}[op];
+ if(op==="all"){if(prompt("Anda akan "+lbl+" untuk "+nm+". Ketik HAPUS untuk lanjut:")!=="HAPUS")return;}
+ else if(!confirm("Anda akan "+lbl+" untuk "+nm+". Data yang dihapus tidak dapat dikembalikan. Lanjutkan?"))return;
+ const L="("+ids.join(",")+")";
+ T(async()=>{
+  if(op==="nilai"||op==="all")await db.del("hasil","mapel_id=in."+L);
+  if(op==="token"||op==="all")await rpc("reset_semua_token",{p_mapel:ids});
+  if(op==="soal"||op==="all")await db.del("soal","mapel_id=in."+L);
+  alert("Selesai.");adm();
+ });
+}
 addEventListener("resize",fit);if(window.ResizeObserver)new ResizeObserver(fit).observe($("cw"));fit();
 home();requestAnimationFrame(loop);
 </script></body></html>
