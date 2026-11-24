@@ -94,12 +94,14 @@ const fd=(x,d)=>x?new Date(x).toLocaleString("id-ID",{dateStyle:"short",timeStyl
 const loc=x=>{if(!x)return"";const d=new Date(x);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16);};
 const copy=t=>{try{navigator.clipboard.writeText(t);alert("Tersalin!");}catch(e){prompt("Salin teks ini:",t);}};
 /* ===== Layar siswa ===== */
-async function home(err){PV=null;$("pvb").style.display="none";await loadRoster();overlay(`<div class="ctr"><img src="icon-192.png" alt="" width="92" height="92" style="border-radius:22px;box-shadow:0 6px 0 rgba(0,0,0,.12)"></div><h1 style="margin-top:10px">Asesmen Game</h1><div class="sub" style="font-size:14px">Masukkan token dari gurumu ✨</div>
-<label>Token</label><input id="t_k" autocapitalize="characters" autocomplete="off" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:2px">
-${nameField()}
+async function home(err){PV=null;$("pvb").style.display="none";overlay(`<div class="ctr"><img src="icon-192.png" alt="" width="92" height="92" style="border-radius:22px;box-shadow:0 6px 0 rgba(0,0,0,.12)"></div><h1 style="margin-top:10px">Asesmen Game</h1><div class="sub" style="font-size:14px">Isi kode kelas, namamu, dan token dari gurumu ✨</div>
+<label>Kode kelas</label><input id="t_c" value="${esc(KODEK)}" placeholder="74VT83" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px" onchange="loadKelas()" oninput="if(this.value.trim().length>=6)loadKelas()">
+<div id="kinfo" class="sub l" style="min-height:16px"></div>
+<div id="nmw">${nameField()}</div>
+<label>Token ujian</label><input id="t_k" value="${esc(LAST.t)}" autocapitalize="characters" autocomplete="off" placeholder="CONTOH: ABC123" style="text-transform:uppercase;letter-spacing:2px">
 <div class="err">${esc(err)}</div>
 <div class="ctr"><button style="background:#f97316;font-size:18px;padding:12px 32px" onclick="mulai()">▶ Mulai</button><br><button class="s m" onclick="guru()">🔑 Masuk Guru</button>${isStd()?"":'<br><button class="s m" style="background:#fff7d6;border-color:#fbbf24;box-shadow:0 4px 0 #fbbf24" onclick="pasang()">📲 Pasang di layar utama</button>'}</div>
-<div class="sub" style="margin-top:10px">❤️ Nyawa terbatas • jalan ke jawaban yang benar<br>Design by Akhmad Fitra Harry, S.Pd</div>`);}
+<div class="sub" style="margin-top:10px">❤️ Nyawa terbatas • jalan ke jawaban yang benar<br>Design by Akhmad Fitra Harry, S.Pd</div>`);if(KODEK&&!(KODEK in ROSTERS))loadKelas();}
 let PV=null,ord=[0,1,2,3],SOAL=[],S={},i=0,correct=0,lives=3,got=0,TOT=1,lock=true,res=null,resKey=null,P={x:152,y:240,w:16,h:20,f:1};
 const keys={};
 const mkPads=n=>{const w=n===4?70:92,gp=n===4?8:14,x0=(320-(n*w+(n-1)*gp))/2;return Array.from({length:n},(_,k)=>({x:x0+k*(w+gp),y:34,w,h:56,k}));};
@@ -114,17 +116,29 @@ async function pasang(){
  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
  overlay(`<h1>📲 Pasang aplikasi</h1><div class="sub l" style="font-size:14px;line-height:1.8;margin:10px 0">${ios?"1. Buka halaman ini di <b>Safari</b>.<br>2. Ketuk tombol <b>Bagikan</b> (kotak dengan panah ke atas).<br>3. Pilih <b>Tambah ke Layar Utama</b>, lalu ketuk <b>Tambah</b>.":"1. Buka halaman ini di <b>Chrome</b>.<br>2. Ketuk menu <b>⋮</b> di pojok kanan atas.<br>3. Pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>."}</div><div class="ctr"><button onclick="home()">← Kembali</button></div>`);
 }
-let ROSTER=null;
-async function loadRoster(){if(ROSTER!==null)return;try{ROSTER=await rpc("daftar_siswa",{})||[];}catch(e){ROSTER=[];}}
-const nameField=()=>ROSTER&&ROSTER.length?`<label>Nama</label><select id="t_n"><option value="">— Pilih namamu —</option>${ROSTER.map(n=>`<option>${esc(n)}</option>`).join("")}</select>`:`<label>Nama</label><input id="t_n" placeholder="Nama lengkap">`;
+let KODEK=(()=>{try{const u=new URLSearchParams(location.search).get("k");if(u)return u.toUpperCase();return localStorage.getItem("kode_kelas")||"";}catch(e){return "";}})();
+let ROSTERS={},LAST={t:"",n:""};
+const kRoster=()=>ROSTERS[KODEK]||[];
+const nameField=()=>kRoster().length?`<label>Nama lengkap</label><select id="t_n"><option value="">— Pilih namamu —</option>${kRoster().map(n=>`<option ${n===LAST.n?"selected":""}>${esc(n)}</option>`).join("")}</select>`:`<label>Nama lengkap</label><input id="t_n" placeholder="Nama lengkap" value="${esc(LAST.n)}">`;
+async function loadKelas(){
+ const k=($("t_c").value||"").trim().toUpperCase(),inf=$("kinfo");KODEK=k;
+ if(k.length<4){inf.textContent="";return;}
+ inf.style.color="";inf.textContent="Memeriksa kode kelas...";
+ try{const d=await rpc("kelas_info",{p_kode:k});ROSTERS[k]=d.siswa||[];try{localStorage.setItem("kode_kelas",k);}catch(e){}
+  inf.style.color="var(--ok)";inf.textContent="✅ "+d.nama+(d.sekolah?" · "+d.sekolah:"");}
+ catch(e){ROSTERS[k]=[];inf.style.color="var(--no)";inf.textContent="❌ "+e.message;}
+ const nw=$("nmw");if(nw&&$("t_c")&&$("t_c").value.trim().toUpperCase()===k)nw.innerHTML=nameField();
+}
 async function mulai(){
- const kode=$("t_k").value.trim().toUpperCase(),nama=$("t_n").value.trim();
- if(!kode)return home("Isi token dulu.");
+ const kelas=($("t_c").value||"").trim().toUpperCase(),kode=$("t_k").value.trim().toUpperCase(),nama=$("t_n").value.trim();
+ LAST={t:kode,n:nama};KODEK=kelas;
+ if(!kelas)return home("Isi kode kelas dulu.");
  if(!nama)return home("Pilih atau isi namamu dulu.");
+ if(!kode)return home("Isi token dulu.");
  busy("Memuat soal...");
  try{
-  const d=await rpc("mulai",{p_kode:kode,p_nama:nama});
-  S={kode,mapel:d.mapel,nama:d.nama};
+  const d=await rpc("mulai",{p_kelas:kelas,p_kode:kode,p_nama:nama});
+  S={kode,mapel:d.mapel,nama:d.nama};LAST={t:"",n:""};
   SOAL=d.soal;TOT=SOAL.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=d.nyawa>0?d.nyawa:Infinity;PV=null;
   let fin=false;
   if(d.lanjut){const sd=new Set(d.sudah);i=SOAL.findIndex(x=>!sd.has(x.id));correct=d.benar;got=d.got;if(d.nyawa>0)lives=d.nyawa-d.salah;fin=i<0||lives<=0;}
@@ -210,20 +224,20 @@ document.querySelectorAll(".dp button").forEach(b=>{
 });
 /* ===== Panel guru ===== */
 function guru(err){
- if(tok)return adm();
+ if(tok)return KL?adm():kelasList();
  overlay(`<h1>🔑 Masuk Guru</h1><div class="sub">Akun dibuat di Supabase: Authentication > Users</div>
  <label>Email</label><input id="g_e" type="email" autocomplete="username"><label>Kata sandi</label><input id="g_p" type="password" autocomplete="current-password">
  <div class="err">${esc(err)}</div><div class="ctr"><button onclick="login()">Masuk</button><br><button class="s m" onclick="home()">← Kembali</button></div>`);
 }
 async function login(){
- try{const j=await api("/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email:$("g_e").value.trim(),password:$("g_p").value})});tok=j.access_token;adm();}
+ try{const j=await api("/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email:$("g_e").value.trim(),password:$("g_p").value})});tok=j.access_token;KL=null;window._pick=false;kelasList();}
  catch(e){guru(e.message);}
 }
-const T=async f=>{try{await f();}catch(e){if(/jwt|expired/i.test(e.message)){tok=null;guru("Sesi habis, masuk lagi.");}else adm(e.message);}};
+const T=async f=>{try{await f();}catch(e){if(/jwt|expired/i.test(e.message)){tok=null;guru("Sesi habis, masuk lagi.");}else KL?adm(e.message):kelasList(e.message);}};
 const back=`<div class="ctr"><button class="s" onclick="vMapel()">← Kembali</button></div>`;
 function vMapel(err){T(async()=>{
  busy("Memuat...");
- const L=await db.sel("mapel","select=*,soal(count),token(count)&order=created_at");
+ const L=await db.sel("mapel","select=*,soal(count),token(count)&kelas_id=eq."+KL+"&order=created_at");
  overlay(`<h1>Mata pelajaran &amp; soal</h1><div class="sub">Setiap mapel punya soal, token, dan jadwal sendiri.</div>
  <input id="n_m" placeholder="Nama mata pelajaran baru"><button onclick="addMapel()">+ Tambah mapel</button><div class="err">${esc(err)}</div>
  ${L.map(m=>`<div class="card"><div class="top"><b>${esc(m.nama)}</b><span class="pill ${m.aktif?"":"x"}">${m.aktif?"Dibuka":"Ditutup"}</span></div>
@@ -232,7 +246,7 @@ function vMapel(err){T(async()=>{
  <button class="m" onclick="vSoal('${m.id}')">✏️ Soal</button><button class="m s" onclick="vJadwal('${m.id}')">⚙ Atur</button><button class="m s" onclick="vToken('${m.id}')">🎫 Token</button><button class="m s" onclick="vHasil('${m.id}')">📊 Hasil</button><button class="m s" onclick="hapus('${m.id}')">🗑️</button></div>`).join("")}
  <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
 });}
-function addMapel(){const n=$("n_m").value.trim();if(!n)return;T(async()=>{await db.ins("mapel",[{nama:n}]);vMapel();});}
+function addMapel(){const n=$("n_m").value.trim();if(!n)return;T(async()=>{await db.ins("mapel",[{nama:n,kelas_id:KL}]);vMapel();});}
 function hapus(id){if(confirm("Hapus mapel beserta soal, token, dan hasilnya?"))T(async()=>{await db.del("mapel","id=eq."+id);vMapel();});}
 /* ===== Soal: daftar, form, impor ===== */
 const hdr=(t,b)=>`<div class="hd"><button class="s m" onclick="${b}">‹ Kembali</button><h1>${t}</h1><button class="s m" onclick="home()">✕ Tutup</button></div>`;
@@ -390,7 +404,6 @@ function vHasil(id){T(async()=>{
 /* ===== Dasbor guru ===== */
 const shuf=a=>{for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]];}return a;};
 let DM="",DQ="",DS="",DATA={m:[],h:[],cfg:{},live:[]};
-const TB=["mapel","soal","token","hasil","pengaturan","siswa"],ORD={mapel:"created_at",soal:"created_at",token:"kode",hasil:"created_at",pengaturan:"kunci",siswa:"nama"};
 const all=async(t,q="")=>{let o=[],n=0,r;do{r=await db.sel(t,q+(q?"&":"")+"limit=1000&offset="+n);o=o.concat(r);n+=1000;}while(r.length===1000);return o;};
 const X=f=>Promise.resolve().then(f).catch(e=>alert(e.message));
 const lib=u=>new Promise((ok,no)=>{const s=document.createElement("script");s.src=u;s.onload=ok;s.onerror=()=>no(new Error("Gagal memuat pustaka. Periksa internet."));document.head.appendChild(s);});
@@ -411,20 +424,21 @@ const rowsX=()=>rowsF().map((x,n)=>[n+1,x.nama||"",(x.mapel&&x.mapel.nama)||"",x
 async function adm(err){
  busy("Memuat...");
  try{
-  const [m,h,cf,tk]=await Promise.all([db.sel("mapel","select=id,nama&order=created_at"),all("hasil","select=*,mapel(nama,kkm)&order=created_at.desc"),db.sel("pengaturan","select=*").catch(()=>[]),db.sel("token","dipakai=eq.true&select=kode,nama,mapel(nama)&order=kode")]);
+  const [m,h,kl,tk]=await Promise.all([db.sel("mapel","select=id,nama&kelas_id=eq."+KL+"&order=created_at"),all("hasil","select=*,mapel!inner(nama,kkm,kelas_id)&mapel.kelas_id=eq."+KL+"&order=created_at.desc"),db.sel("kelas","id=eq."+KL),db.sel("token","dipakai=eq.true&select=kode,nama,mapel!inner(nama,kelas_id)&mapel.kelas_id=eq."+KL+"&order=kode")]);
+  KLO=kl[0];if(!KLO){KL=null;return kelasList();}
   const done=new Set(h.map(x=>x.kode));
-  DATA={m,h,cfg:Object.fromEntries(cf.map(x=>[x.kunci,x.nilai])),live:tk.filter(x=>!done.has(x.kode))};
+  DATA={m,h,cfg:{sekolah:KLO.sekolah||"",kelas:KLO.nama||"",tahun:KLO.tahun||""},live:tk.filter(x=>!done.has(x.kode))};
  }catch(e){if(/jwt|expired/i.test(e.message)){tok=null;return guru("Sesi habis, masuk lagi.");}err=e.message;}
  dash(err);
 }
 function dash(err){
- overlay(`<h1>Dasbor Guru</h1><div class="sub">${esc([DATA.cfg.sekolah,DATA.cfg.kelas,DATA.cfg.tahun].filter(Boolean).join(" • "))}</div>
+ overlay(`<h1>Dasbor Guru</h1><div class="ctr"><span class="pill" style="font-size:14px">Kode kelas: <b style="letter-spacing:2px">${esc(KLO.kode)}</b></span><br><button class="m s" onclick="copy(KLO.kode)">📋 Salin kode</button><button class="m s" onclick="gantiKelas()">🏫 Ganti kelas</button></div><div class="sub">${esc([DATA.cfg.sekolah,DATA.cfg.kelas,DATA.cfg.tahun].filter(Boolean).join(" • "))}</div>
  <div class="card" style="margin:8px 0;border-style:dashed">${DATA.live.length?`<b style="font-size:13px">Sedang mengerjakan (${DATA.live.length})</b>`+DATA.live.map(x=>`<div class="it"><span>${esc(x.nama)} <small>· ${esc(x.mapel&&x.mapel.nama)}</small></span><button class="m s" onclick="doReset('${x.kode}')">↺ Reset</button></div>`).join(""):`<div class="sub" style="margin:0">Belum ada siswa yang sedang mengerjakan.</div>`}</div>
  <div class="g2"><button onclick="vMapel()">📚 Mapel &amp; Soal</button><button class="s" onclick="vSiswa()">👥 Daftar siswa</button><button class="s" onclick="vBackup()">💾 Cadangan</button><button class="s" onclick="vCfg()">⚙ Pengaturan kelas</button></div>
  <select id="d_m" onchange="DM=this.value;dash()"><option value="">Semua mata pelajaran</option>${DATA.m.map(m=>`<option value="${m.id}" ${DM===m.id?"selected":""}>${esc(m.nama)}</option>`).join("")}</select>
  <select id="d_s" onchange="DS=this.value;tbl()"><option value="">Semua status</option><option value="T" ${DS==="T"?"selected":""}>Tuntas</option><option value="R" ${DS==="R"?"selected":""}>Remedial</option></select>
  <div class="g2"><input id="d_q" placeholder="Cari nama siswa..." value="${esc(DQ)}" oninput="DQ=this.value.toLowerCase();tbl()" style="margin:0"><button class="s" style="margin:0" onclick="adm()">↻ Muat ulang</button></div>
- <button class="s m" onclick="copy(location.href.split('#')[0])">🔗 Salin link siswa</button><button class="s m" onclick="kartuPick()">🪪 Kartu token (PDF)</button><button class="s m" onclick="vAnalisis()">📊 Analisis soal</button>
+ <button class="s m" onclick="copy(linkSiswa())">🔗 Salin link siswa</button><button class="s m" onclick="kartuPick()">🪪 Kartu token (PDF)</button><button class="s m" onclick="vAnalisis()">📊 Analisis soal</button>
  <button class="m o" onclick="X(expPDF)">Unduh PDF</button><button class="m" onclick="X(expXLS)">Unduh Excel</button><button class="m s" onclick="expCSV()">Unduh CSV</button><button class="m s" onclick="copy(rowsF().filter(x=>x.nilai<kk(x)).map(x=>x.nama).join('\n')||'Tidak ada siswa remedial')">📋 Salin daftar remedial</button>
  <div id="sm" class="sub l" style="margin-top:8px"></div><div class="tw"><table id="tb"></table></div>
  <label>RESET TOKEN AGAR BISA DIPAKAI ULANG</label><input id="d_r" placeholder="Kode token" style="text-transform:uppercase"><button class="s m" onclick="resetKode()">Reset token</button>
@@ -451,7 +465,7 @@ async function expPDF(){await need("pdf");const d=new window.jspdf.jsPDF();
  d.setFontSize(14);d.text("Hasil Asesmen"+(DM?" - "+mNama():""),14,16);d.setFontSize(10);d.text([DATA.cfg.sekolah,DATA.cfg.kelas,DATA.cfg.tahun].filter(Boolean).join(" • "),14,23);
  d.autoTable({head:[HEAD],body:rowsX(),startY:28});d.save("hasil.pdf");}
 function kartuPick(){T(async()=>{
- const L=await db.sel("mapel","select=id,nama,token(count)&order=created_at");
+ const L=await db.sel("mapel","select=id,nama,token(count)&kelas_id=eq."+KL+"&order=created_at");
  overlay(`<h1>🪪 Kartu token (PDF)</h1><div class="sub">Pilih satu mata pelajaran. Tiap mapel dicetak terpisah.</div>
  <label style="display:flex;gap:8px;align-items:center"><input id="k_u" type="checkbox" style="width:auto;margin:0"> Hanya token yang belum dipakai</label>
  ${L.map(m=>`<div class="it"><span><b>${esc(m.nama)}</b><br><small>${m.token[0].count} token</small></span><button class="m" onclick="X(()=>kartu('${m.id}'))">🪪 Cetak</button></div>`).join("")||"<div class='sub'>Belum ada mapel.</div>"}
@@ -462,10 +476,10 @@ async function kartu(mid){
  const mp=(DATA.m.find(x=>x.id===mid)||{}).nama||"";
  const L=await all("token","select=kode,nama&mapel_id=eq."+mid+(uo?"&dipakai=eq.false":"")+"&order=kode");
  if(!L.length)return alert("Tidak ada token untuk dicetak.");
- const d=new window.jspdf.jsPDF(),link=location.href.split("#")[0],sek=[DATA.cfg.sekolah,DATA.cfg.kelas].filter(Boolean).join(" • ");
+ const d=new window.jspdf.jsPDF(),link=linkSiswa(),sek=[DATA.cfg.sekolah,DATA.cfg.kelas].filter(Boolean).join(" • ");
  L.forEach((t,n)=>{if(n&&n%10===0)d.addPage();const k=n%10,x=10+(k%2)*95,y=10+Math.floor(k/2)*55;
   d.rect(x,y,90,50);d.setFontSize(8);d.text(sek,x+4,y+7);d.setFontSize(13);d.text(t.nama||"Nama: ...............",x+4,y+17);
-  d.setFontSize(10);d.text(mp,x+4,y+24);d.setFontSize(22);d.text(t.kode,x+4,y+37);d.setFontSize(7);d.text(link,x+4,y+46);});
+  d.setFontSize(10);d.text(mp,x+4,y+23);d.setFontSize(9);d.text("Kode kelas: "+(KLO?KLO.kode:""),x+4,y+29);d.setFontSize(22);d.text(t.kode,x+4,y+40);d.setFontSize(7);d.text(link,x+4,y+47);});
  d.save("kartu-token-"+(mp.replace(/[^A-Za-z0-9]+/g,"-")||"mapel")+".pdf");}
 function vAnalisis(){if(!DM)return alert("Pilih mata pelajaran dulu.");T(async()=>{
  const L=await rpc("analisis",{p_mapel:DM});
@@ -474,37 +488,68 @@ function vAnalisis(){if(!DM)return alert("Pilih mata pelajaran dulu.");T(async()
  <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
 });}
 function vSiswa(){T(async()=>{
- const L=await all("siswa","select=nama&order=nama");
+ const L=await all("siswa","select=nama&kelas_id=eq."+KL+"&order=nama");
  overlay(`<h1>👥 Daftar siswa kelas</h1><div class="sub l" style="line-height:1.5">Isi satu nama per baris. Jika daftar diisi, siswa memilih namanya dari daftar dan hanya bisa memakai satu token per mata pelajaran. Kosongkan jika siswa boleh mengetik sendiri.</div>
  <textarea id="s_l" style="min-height:260px">${esc(L.map(x=>x.nama).join("\n"))}</textarea><div class="sub l">${L.length} siswa tersimpan</div>
  <button onclick="saveSiswa()">Simpan daftar</button><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
 });}
 function saveSiswa(){const n=[...new Set($("s_l").value.split("\n").map(x=>x.trim()).filter(Boolean))];
- T(async()=>{await db.del("siswa","nama=not.is.null");if(n.length)await db.ins("siswa",n.map(x=>({nama:x})));ROSTER=null;alert("Daftar tersimpan: "+n.length+" siswa.");adm();});}
-function vCfg(){const c=DATA.cfg;overlay(`<h1>⚙ Pengaturan kelas</h1><div class="sub">Dipakai di judul PDF dan kartu token</div>
- <label>Nama sekolah</label><input id="c_s" value="${esc(c.sekolah)}"><label>Kelas</label><input id="c_k" value="${esc(c.kelas)}"><label>Tahun ajaran</label><input id="c_t" value="${esc(c.tahun)}">
- <div class="ctr"><button onclick="saveC()">Simpan</button></div><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);}
-function saveC(){T(async()=>{await db.ins("pengaturan",[{kunci:"sekolah",nilai:$("c_s").value.trim()},{kunci:"kelas",nilai:$("c_k").value.trim()},{kunci:"tahun",nilai:$("c_t").value.trim()}],{Prefer:"resolution=merge-duplicates"});adm();});}
+ T(async()=>{await db.del("siswa","kelas_id=eq."+KL);if(n.length)await db.ins("siswa",n.map(x=>({nama:x,kelas_id:KL})));ROSTERS={};alert("Daftar tersimpan: "+n.length+" siswa.");adm();});}
 function vBackup(){overlay(`<h1>💾 Cadangan</h1><div class="sub">Simpan semua mapel, soal, token, dan hasil ke satu file.</div>
  <div class="ctr"><button onclick="X(bk)">⬇ Unduh cadangan</button></div>
  <label>Pulihkan dari file cadangan (.json)</label><input id="b_f" type="file" accept=".json,application/json">
  <div class="ctr"><button class="s m" onclick="X(rs)">Pulihkan</button></div><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);}
-async function bk(){const o={versi:1,tgl:new Date().toISOString()};for(const t of TB)o[t]=await all(t,"select=*&order="+ORD[t]);
- dl("cadangan-asesmen-"+o.tgl.slice(0,10)+".json",new Blob([JSON.stringify(o)],{type:"application/json"}));}
-async function rs(){const f=$("b_f").files[0];if(!f)return alert("Pilih file cadangan dulu.");
- if(!confirm("Pulihkan data dari file ini? Data dengan ID yang sama akan ditimpa."))return;
- const o=JSON.parse(await f.text());
- for(const t of TB){const r=o[t]||[];for(let n=0;n<r.length;n+=300)await db.ins(t,r.slice(n,n+300),{Prefer:"resolution=merge-duplicates"});}
- alert("Pemulihan selesai.");adm();}
 function resetKode(){const k=$("d_r").value.trim().toUpperCase();if(!k)return;
  T(async()=>{if(!(await db.sel("token","kode=eq."+k+"&select=kode")).length)return alert("Token tidak ditemukan.");
  await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,nama:null,jumlah:0});alert("Token "+k+" direset.");adm();});}
 function doReset(k){if(confirm("Reset agar siswa ini bisa mengulang?"))T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,nama:null,jumlah:0});adm();});}
-function zona(j){
- if(j==="all"){if(prompt("Ketik HAPUS untuk menghapus SEMUA mapel, soal, token, dan hasil:")!=="HAPUS")return;T(async()=>{await db.del("mapel","id=not.is.null");DM="";adm();});return;}
- if(!confirm((j==="hasil"?"Hapus hasil ":"Hapus semua token ")+(DM?mNama():"SEMUA mapel")+"?"))return;
- T(async()=>{if(j==="hasil")await db.del("hasil",DM?"mapel_id=eq."+DM:"id=not.is.null");else await db.del("token",DM?"mapel_id=eq."+DM:"kode=not.is.null");adm();});}
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+/* ===== Kelas: banyak kelas dengan kode kelas ===== */
+let KL=null,KLO=null;
+const rcode=()=>Array.from(crypto.getRandomValues(new Uint8Array(6)),x=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x%32]).join("");
+const linkSiswa=()=>location.origin+location.pathname+"?k="+(KLO?KLO.kode:"");
+function gantiKelas(){window._pick=true;KL=null;DM="";DQ="";DS="";kelasList();}
+async function kelasList(err){
+ busy("Memuat...");
+ try{
+  const L=await db.sel("kelas","select=*,mapel(count)&order=created_at");
+  if(L.length===1&&!err&&!window._pick){KL=L[0].id;return adm();}
+  overlay(`<h1>🏫 Pilih kelas</h1><div class="sub">Tiap kelas punya kode sendiri, serta mapel, soal, daftar siswa, token, dan hasil yang terpisah.</div>
+  ${L.map(k=>`<div class="card"><div class="top"><b>${esc(k.nama)}</b><span class="pill">${esc(k.kode)}</span></div><div class="sub l">${esc(k.sekolah||"")}${k.sekolah?" · ":""}${k.mapel[0].count} mapel</div>
+  <button class="m" onclick="pilihK('${k.id}')">Buka</button><button class="m s" onclick="delKelas('${k.id}')">🗑️</button></div>`).join("")}
+  <label>Tambah kelas baru</label><input id="k_nm" placeholder="Contoh: VII-A"><button onclick="addKelas()">+ Tambah kelas</button>
+  <div class="err">${esc(err)}</div><div class="ctr"><button class="s" onclick="home()">← Ke layar siswa</button></div>`);
+ }catch(e){if(/jwt|expired/i.test(e.message)){tok=null;guru("Sesi habis, masuk lagi.");}else overlay(`<h1>Gagal memuat</h1><div class="err">${esc(e.message)}</div><div class="ctr"><button onclick="kelasList()">Coba lagi</button></div>`);}
+}
+function pilihK(id){window._pick=false;KL=id;DM="";DQ="";DS="";adm();}
+function addKelas(){const n=$("k_nm").value.trim();if(!n)return;
+ T(async()=>{let ok=false,er;for(let t=0;t<5&&!ok;t++){try{await db.ins("kelas",[{nama:n,kode:rcode()}]);ok=true;}catch(e){er=e;}}if(!ok)throw er;window._pick=true;kelasList();});}
+function delKelas(id){if(prompt("Menghapus kelas akan menghapus SEMUA mapel, soal, token, dan hasilnya. Ketik HAPUS untuk lanjut:")==="HAPUS")T(async()=>{await db.del("kelas","id=eq."+id);window._pick=true;kelasList();});}
+function vCfg(){const k=KLO;overlay(`<h1>⚙ Pengaturan kelas</h1><div class="sub">Dipakai di judul PDF dan kartu token</div>
+ <div class="card ctr" style="margin-top:6px"><div class="sub" style="margin:0">Kode kelas (bagikan ke siswa)</div><div style="font-size:32px;font-weight:800;letter-spacing:4px;color:var(--ac)">${esc(k.kode)}</div><button class="m s" onclick="copy(KLO.kode)">📋 Salin</button><button class="m s" onclick="newKode()">🔄 Kode baru</button></div>
+ <label>Nama kelas</label><input id="c_k" value="${esc(k.nama)}"><label>Nama sekolah</label><input id="c_s" value="${esc(k.sekolah)}"><label>Tahun ajaran</label><input id="c_t" value="${esc(k.tahun)}">
+ <div class="ctr"><button onclick="saveC()">Simpan</button></div><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);}
+function saveC(){const n=$("c_k").value.trim();if(!n)return alert("Nama kelas tidak boleh kosong.");
+ T(async()=>{await db.upd("kelas","id=eq."+KL,{nama:n,sekolah:$("c_s").value.trim()||null,tahun:$("c_t").value.trim()||null});adm();});}
+function newKode(){if(confirm("Buat kode kelas baru? Kode lama tidak berlaku lagi, dan kartu token yang sudah dicetak perlu dicetak ulang."))T(async()=>{await db.upd("kelas","id=eq."+KL,{kode:rcode()});adm();});}
+async function bk(){
+ const o={versi:2,tgl:new Date().toISOString()},k="&kelas_id=eq."+KL;
+ o.kelas=await all("kelas","select=*&id=eq."+KL+"&order=created_at");
+ o.mapel=await all("mapel","select=*"+k+"&order=created_at");
+ o.siswa=await all("siswa","select=*"+k+"&order=nama");
+ for(const t of["soal","token","hasil"])o[t]=(await all(t,"select=*,mapel!inner(kelas_id)&mapel.kelas_id=eq."+KL+"&order="+(t==="token"?"kode":"created_at"))).map(({mapel,...r})=>r);
+ dl("cadangan-"+((KLO&&KLO.nama)||"kelas").replace(/[^A-Za-z0-9]+/g,"-")+"-"+o.tgl.slice(0,10)+".json",new Blob([JSON.stringify(o)],{type:"application/json"}));}
+async function rs(){const f=$("b_f").files[0];if(!f)return alert("Pilih file cadangan dulu.");
+ if(!confirm("Pulihkan data dari file ini? Data dengan ID yang sama akan ditimpa."))return;
+ const o=JSON.parse(await f.text());
+ for(const t of["kelas","mapel","siswa","soal","token","hasil"]){let r=o[t]||[];if(t==="kelas")r=r.map(({owner,...x})=>x);for(let n=0;n<r.length;n+=300)await db.ins(t,r.slice(n,n+300),{Prefer:"resolution=merge-duplicates"});}
+ alert("Pemulihan selesai.");adm();}
+function zona(j){
+ const ids=(DM?[DM]:DATA.m.map(x=>x.id)).join(",");
+ if(j==="all"){if(prompt("Ketik HAPUS untuk menghapus SEMUA mapel, soal, token, dan hasil kelas ini:")!=="HAPUS")return;T(async()=>{await db.del("mapel","kelas_id=eq."+KL);DM="";adm();});return;}
+ if(!ids)return alert("Belum ada mapel.");
+ if(!confirm((j==="hasil"?"Hapus hasil ":"Hapus semua token ")+(DM?mNama():"SEMUA mapel kelas ini")+"?"))return;
+ T(async()=>{await db.del(j==="hasil"?"hasil":"token","mapel_id=in.("+ids+")");adm();});}
 addEventListener("resize",fit);if(window.ResizeObserver)new ResizeObserver(fit).observe($("cw"));fit();
 home();requestAnimationFrame(loop);
 </script></body></html>
