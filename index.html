@@ -97,13 +97,22 @@ async function home(err){PV=null;$("pvb").style.display="none";await loadRoster(
 <label>Token</label><input id="t_k" autocapitalize="characters" autocomplete="off" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:2px">
 ${nameField()}
 <div class="err">${esc(err)}</div>
-<div class="ctr"><button style="background:#f97316;font-size:18px;padding:12px 32px" onclick="mulai()">▶ Mulai</button><br><button class="s m" onclick="guru()">🔑 Masuk Guru</button></div>
+<div class="ctr"><button style="background:#f97316;font-size:18px;padding:12px 32px" onclick="mulai()">▶ Mulai</button><br><button class="s m" onclick="guru()">🔑 Masuk Guru</button>${isStd()?"":'<br><button class="s m" style="background:#fff7d6;border-color:#fbbf24;box-shadow:0 4px 0 #fbbf24" onclick="pasang()">📲 Pasang di layar utama</button>'}</div>
 <div class="sub" style="margin-top:10px">❤️ Nyawa terbatas • jalan ke jawaban yang benar<br>Design by Akhmad Fitra Harry, S.Pd</div>`);}
 let PV=null,ord=[0,1,2,3],SOAL=[],S={},i=0,correct=0,lives=3,got=0,TOT=1,lock=true,res=null,resKey=null,P={x:152,y:240,w:16,h:20,f:1};
 const keys={};
 const mkPads=n=>{const w=n===4?70:92,gp=n===4?8:14,x0=(320-(n*w+(n-1)*gp))/2;return Array.from({length:n},(_,k)=>({x:x0+k*(w+gp),y:34,w,h:56,k}));};
 let pads=mkPads(4);
 const lvl=n=>Math.min(3,Math.floor(n*3/SOAL.length)+1);
+let DP=null;
+const isStd=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();DP=e;});
+addEventListener("appinstalled",()=>{DP=null;home();});
+async function pasang(){
+ if(DP){DP.prompt();const c=await DP.userChoice;DP=null;if(c.outcome==="accepted")home();return;}
+ const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+ overlay(`<h1>📲 Pasang aplikasi</h1><div class="sub l" style="font-size:14px;line-height:1.8;margin:10px 0">${ios?"1. Buka halaman ini di <b>Safari</b>.<br>2. Ketuk tombol <b>Bagikan</b> (kotak dengan panah ke atas).<br>3. Pilih <b>Tambah ke Layar Utama</b>, lalu ketuk <b>Tambah</b>.":"1. Buka halaman ini di <b>Chrome</b>.<br>2. Ketuk menu <b>⋮</b> di pojok kanan atas.<br>3. Pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>."}</div><div class="ctr"><button onclick="home()">← Kembali</button></div>`);
+}
 let ROSTER=null;
 async function loadRoster(){if(ROSTER!==null)return;try{ROSTER=await rpc("daftar_siswa",{})||[];}catch(e){ROSTER=[];}}
 const nameField=()=>ROSTER&&ROSTER.length?`<label>Nama</label><select id="t_n"><option value="">— Pilih namamu —</option>${ROSTER.map(n=>`<option>${esc(n)}</option>`).join("")}</select>`:`<label>Nama</label><input id="t_n" placeholder="Nama lengkap">`;
