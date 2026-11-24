@@ -15,16 +15,17 @@
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:linear-gradient(180deg,#dff5ff 0%,#fff8dc 100%) fixed;color:var(--tx);font-family:"Trebuchet MS",system-ui,sans-serif;display:flex;justify-content:center}
-#app{width:100%;max-width:420px;padding:10px}
-.bar{display:flex;justify-content:space-between;font-weight:700;font-size:13px;margin-bottom:6px}
-.q{background:var(--card);border:3px solid var(--ac);border-radius:14px;padding:10px;font-weight:700;font-size:15px;margin-bottom:6px}
-.o{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;font-size:13px}
-.o div{background:var(--card);border-radius:8px;padding:5px 7px;border-left:6px solid}
-canvas{width:100%;display:block;border:3px solid var(--ac);border-radius:14px;image-rendering:pixelated;touch-action:none;background:#f3e3c0}
-.msg{min-height:22px;text-align:center;font-weight:700;margin:6px 0}
-.dp{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,52px);gap:5px;justify-content:center}
-.dp button{font-size:22px;border:0;border-radius:12px;background:var(--ac);color:#fff;touch-action:none}
-.cr{text-align:center;font-size:12px;opacity:.75;margin-top:10px}
+#app{width:100%;max-width:420px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;height:100vh;height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow:hidden}
+.bar{flex:none;display:flex;justify-content:space-between;font-weight:700;font-size:13px}
+.q{flex:none;max-height:22vh;overflow:auto;background:var(--card);border:3px solid var(--ac);border-radius:12px;padding:7px 9px;font-weight:700;font-size:14px;line-height:1.3}
+.o{flex:none;max-height:22vh;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;line-height:1.25}
+.o div{background:var(--card);border-radius:8px;padding:4px 6px;border-left:6px solid}
+.cw{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center}
+canvas{display:block;border:3px solid var(--ac);border-radius:14px;image-rendering:pixelated;touch-action:none;background:#f3e3c0}
+.msg{flex:none;min-height:20px;font-size:14px;text-align:center;font-weight:700;margin:2px 0}
+.dp{flex:none;display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,42px);gap:4px;justify-content:center}
+.dp button{font-size:19px;border:0;border-radius:12px;background:var(--ac);color:#fff;touch-action:none;box-shadow:0 3px 0 rgba(0,0,0,.2)}
+.cr{flex:none;text-align:center;font-size:11px;opacity:.7}
 .ov{position:fixed;inset:0;background:linear-gradient(160deg,#bdeeff 0%,#fff3b0 60%,#ffd6e7 100%);display:flex;align-items:flex-start;justify-content:center;padding:12px;z-index:5;overflow:auto}
 .ov>div{background:var(--card);border:4px solid var(--ac);border-radius:20px;padding:16px;width:100%;max-width:420px;margin:auto;box-shadow:0 10px 0 rgba(13,148,136,.22)}
 .ov h1{margin:0 0 4px;font-size:23px;text-align:center;color:#0b6e8a}
@@ -50,7 +51,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}th{background:var(--in)
 .badge{background:var(--ac);color:#fff;border-radius:9px;min-width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
 .drop{border:3px dashed var(--ac);border-radius:18px;padding:22px 14px;text-align:center;background:var(--in);cursor:pointer}
 pre{font-size:12px;white-space:pre-wrap;background:var(--in);padding:8px;border-radius:8px}
-.pj{background:#fff8dc;border:2px solid #fbbf24;border-radius:12px;padding:10px;font-size:13px;margin:6px 0}.pj button{margin-top:8px;padding:8px 18px;border:0;border-radius:10px;background:var(--ac);color:#fff;font-weight:700}
+.pj{flex:none;max-height:28vh;overflow:auto;background:#fff8dc;border:2px solid #fbbf24;border-radius:12px;padding:10px;font-size:13px;margin:6px 0}.pj button{margin-top:8px;padding:8px 18px;border:0;border-radius:10px;background:var(--ac);color:#fff;font-weight:700}
 tr.clk{cursor:pointer}.st-t{color:#15803d;font-weight:700}.st-r{color:#c2410c;font-weight:700}
 </style></head><body>
 <div id="app">
@@ -58,7 +59,7 @@ tr.clk{cursor:pointer}.st-t{color:#15803d;font-weight:700}.st-r{color:#c2410c;fo
 <div class="bar"><span id="no">Lv 1</span><span id="lf"></span><span id="tm"></span><span id="sc">Skor: 0</span></div>
 <div class="q" id="q">Memuat...</div>
 <div class="o" id="o"></div>
-<canvas id="c" width="320" height="300"></canvas>
+<div class="cw" id="cw"><canvas id="c" width="320" height="300"></canvas></div>
 <div class="msg" id="m"></div>
 <div id="pj" class="pj" style="display:none"></div>
 <div class="dp">
@@ -136,11 +137,12 @@ function load(){
  const raw=[s.a,s.b,s.c,s.d].filter(x=>x!=null&&x!=="");
  ord=shuf(raw.map((_,k)=>k));pads=mkPads(raw.length);
  $("no").textContent="Soal "+(i+1)+"/"+SOAL.length;
- $("q").innerHTML=esc(s.tanya)+(s.gambar?`<img src="${s.gambar}" style="display:block;max-width:100%;max-height:150px;margin:6px auto 0;border-radius:8px">`:"");
+ $("q").innerHTML=esc(s.tanya)+(s.gambar?`<img src="${s.gambar}" style="display:block;max-width:100%;max-height:90px;margin:4px auto 0;border-radius:8px">`:"");
  $("o").innerHTML=ord.map((oi,k)=>`<div style="border-color:${COL[k]}"><b>${LET[k]}.</b> ${esc(raw[oi])}</div>`).join("");
  $("m").textContent="Jalan ke kotak jawaban yang benar!";
- hud();
+ hud();fit();
 }
+function fit(){const w=$("cw");if(!w||!w.clientHeight)return;const c=$("c"),x=Math.max(120,Math.floor(Math.min(w.clientWidth,w.clientHeight*320/300)));c.style.width=x+"px";c.style.height=Math.round(x*300/320)+"px";}
 function hud(){$("lf").textContent=lives===Infinity?"❤️ ∞":"❤️".repeat(Math.max(0,lives));$("sc").textContent=PV?"Skor: "+Math.round(100*got/TOT):"";}
 async function answer(k){
  if(lock)return;lock=true;res=k;let r;
@@ -497,5 +499,6 @@ function zona(j){
  if(!confirm((j==="hasil"?"Hapus hasil ":"Hapus semua token ")+(DM?mNama():"SEMUA mapel")+"?"))return;
  T(async()=>{if(j==="hasil")await db.del("hasil",DM?"mapel_id=eq."+DM:"id=not.is.null");else await db.del("token",DM?"mapel_id=eq."+DM:"kode=not.is.null");adm();});}
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+addEventListener("resize",fit);if(window.ResizeObserver)new ResizeObserver(fit).observe($("cw"));fit();
 home();requestAnimationFrame(loop);
 </script></body></html>
