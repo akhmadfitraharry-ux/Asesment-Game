@@ -479,7 +479,7 @@ function dash(err){
 function tbl(){
  const F=rowsF(),R=rowsX(),t=F.filter(x=>x.nilai>=kk(x)).length,av=F.length?Math.round(F.reduce((a,x)=>a+x.nilai,0)/F.length):0;
  $("sm").textContent=F.length?F.length+" selesai · "+t+" tuntas · "+(F.length-t)+" remedial · rata-rata "+av:"";
- $("tb").innerHTML="<tr>"+HEAD.map(h=>`<th>${h}</th>`).join("")+"</tr>"+(R.length?R.map(r=>`<tr class="clk" onclick="vDetail('${esc(r[3])}')">`+r.map((c,k)=>k===7?`<td class="${c==="Tuntas"?"st-t":"st-r"}">${c}</td>`:`<td>${esc(c)}</td>`).join("")+"</tr>").join(""):`<tr><td colspan="9" style="text-align:center;opacity:.7">Belum ada hasil</td></tr>`);}
+ $("tb").innerHTML="<tr>"+HEAD.map(h=>`<th>${h}</th>`).join("")+"<th>Aksi</th></tr>"+(R.length?R.map(r=>`<tr class="clk" onclick="vDetail('${esc(r[3])}')">`+r.map((c,k)=>k===7?`<td class="${c==="Tuntas"?"st-t":"st-r"}">${c}</td>`:`<td>${esc(c)}</td>`).join("")+`<td><button class="m s" style="margin:0" onclick="event.stopPropagation();resetHasil('${esc(r[3])}')">↺ Reset</button></td></tr>`).join(""):`<tr><td colspan="10" style="text-align:center;opacity:.7">Belum ada hasil</td></tr>`);}
 function vDetail(k){T(async()=>{
  const [h]=await db.sel("hasil","kode=eq."+k+"&select=*,mapel(nama,kkm)"),L=await db.sel("jawaban","kode=eq."+k+"&select=pilih,benar,teks,soal(tanya,a,b,c,d,kunci,tipe)");
  const st=h.nilai>=kk(h)?"Tuntas":"Remedial";
@@ -488,6 +488,7 @@ function vDetail(k){T(async()=>{
  ${L.sort((a,b)=>a.benar-b.benar).map(x=>{const so=x.soal||{},isi=so.tipe==="isian",o=[so.a,so.b,so.c,so.d];
   const js=isi?esc(x.teks||"(kosong)"):(x.pilih<0?"tidak menjawab":LET[x.pilih]+". "+esc(o[x.pilih])),kc=isi?esc((so.a||"").split("|")[0].trim()):(LET[so.kunci]+". "+esc(o[so.kunci]));
   return `<div class="it" style="align-items:flex-start"><span class="badge" style="${x.benar?"":"background:var(--no)"}">${x.benar?"✔":"✖"}</span><span style="flex:1;font-size:13px">${esc(so.tanya)}<br><small>Jawaban siswa: <b>${js}</b>${x.benar?"":` · Kunci: <b>${kc}</b>`}</small></span></div>`;}).join("")}
+ <div class="ctr"><button class="m" style="background:#c2410c" onclick="resetHasil('${esc(k)}')">↺ Reset token siswa ini</button></div>
  <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
 });}
 function expCSV(){const q=v=>'"'+String(v).replace(/"/g,'""')+'"';dl("hasil.csv",new Blob(["\ufeff"+[HEAD,...rowsX()].map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"}));}
@@ -533,6 +534,9 @@ function vBackup(){overlay(`<h1>💾 Cadangan</h1><div class="sub">Simpan semua 
 function resetKode(){const k=$("d_r").value.trim().toUpperCase();if(!k)return;
  T(async()=>{if(!(await db.sel("token","kode=eq."+k+"&select=kode")).length)return alert("Token tidak ditemukan.");
  await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});alert("Token "+k+" direset.");adm();});}
+function resetHasil(k){const x=DATA.h.find(h=>h.kode===k)||{};
+ if(confirm("Reset token milik "+(x.nama||k)+"? Nilai dan jawabannya dihapus, lalu siswa bisa mengerjakan ulang."))
+  T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});adm();});}
 function doReset(k){if(confirm("Reset agar siswa ini bisa mengulang?"))T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});adm();});}
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 /* ===== Efek suara/getar, karakter, anti-curang, soal isian ===== */
