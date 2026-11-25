@@ -162,7 +162,7 @@ function load(){
  if(isi)setTimeout(()=>{const e=$("isi_t");if(e)e.focus();},200);
 }
 function fit(){const w=$("cw");if(!w||!w.clientHeight)return;const c=$("c"),x=Math.max(120,Math.floor(Math.min(w.clientWidth,w.clientHeight*320/300)));c.style.width=x+"px";c.style.height=Math.round(x*300/320)+"px";}
-function hud(){$("lf").textContent=(lives===Infinity?"❤️ ∞":"❤️".repeat(Math.max(0,lives)))+(canTask()?" 🎁":"");$("sc").textContent=PV?"Skor: "+Math.round(100*got/TOT):"";}
+function hud(){$("lf").textContent=(lives===Infinity?"❤️ ∞":lives>6?"❤️ ×"+lives:"❤️".repeat(Math.max(0,lives)))+(canTask()?" 🎁":"");$("sc").textContent=PV?"Skor: "+Math.round(100*got/TOT):"";}
 async function answer(k){
  if(lock)return;lock=true;res=k;let r;
  try{
@@ -391,10 +391,10 @@ function vJadwal(id){T(async()=>{
  <label>Status</label><select id="j_a"><option value="true" ${m.aktif?"selected":""}>Dibuka</option><option value="false" ${m.aktif?"":"selected"}>Ditutup</option></select>
  <label>Buka (kosong = kapan saja)</label><input id="j_b" type="datetime-local" value="${loc(m.buka)}">
  <label>Tutup (kosong = tidak dibatasi)</label><input id="j_t" type="datetime-local" value="${loc(m.tutup)}">
- <label>❤️ Jumlah nyawa (hati)</label><input id="j_n" type="number" min="0" max="10" value="${m.nyawa==null?3:m.nyawa}">
+ <label>❤️ Jumlah nyawa (hati)</label><input id="j_n" type="number" min="0" inputmode="numeric" value="${m.nyawa==null?3:m.nyawa}">
  <div class="sub l">Nyawa berkurang setiap jawaban salah. Jika habis, asesmen berhenti. Isi 0 untuk nyawa tanpa batas.</div>
  <label>🎁 Tugas penambah nyawa</label><select id="j_tg"><option value="false" ${m.tugas_aktif?"":"selected"}>Nonaktif</option><option value="true" ${m.tugas_aktif?"selected":""}>Aktif</option></select>
- <label>Maksimal nyawa tambahan</label><input id="j_mt" type="number" min="0" max="10" value="${m.maks_tambah==null?3:m.maks_tambah}">
+ <label>Maksimal nyawa tambahan</label><input id="j_mt" type="number" min="0" inputmode="numeric" value="${m.maks_tambah==null?3:m.maks_tambah}">
  <div class="sub l">Jika aktif, siswa bisa ke Pos Tugas di arena dan mengerjakan tugas untuk menambah nyawa. Buat tugasnya lewat Soal › 🎁 Tambah tugas. Hanya berlaku jika nyawa dibatasi.</div>
  <label>🎲 Jumlah soal per siswa</label><input id="j_jt" type="number" min="0" value="${m.jumlah_tampil||0}">
  <div class="sub l">0 = semua soal. Isi lebih kecil dari jumlah soal di bank agar tiap siswa mendapat kumpulan soal acak yang berbeda.</div>
@@ -404,8 +404,8 @@ function vJadwal(id){T(async()=>{
  <div class="sub l">Siswa dengan nilai di bawah KKM diberi label Remedial di hasil.</div>
  <div class="ctr"><button onclick="saveJ('${id}')">Simpan</button></div>`);
 });}
-function saveJ(id){const nm=$("j_nm").value.trim();if(!nm)return alert("Nama mapel tidak boleh kosong.");const b=$("j_b").value,t=$("j_t").value,n=Math.max(0,Math.min(10,parseInt($("j_n").value,10)||0));
- T(async()=>{await db.upd("mapel","id=eq."+id,{nama:nm,tugas_aktif:$("j_tg").value==="true",maks_tambah:Math.max(0,Math.min(10,parseInt($("j_mt").value,10)||0)),jumlah_tampil:Math.max(0,parseInt($("j_jt").value,10)||0),aktif:$("j_a").value==="true",buka:b?new Date(b).toISOString():null,tutup:t?new Date(t).toISOString():null,nyawa:n,kkm:Math.max(0,Math.min(100,parseInt($("j_k").value,10)||0)),bobot_sama:$("j_w").value==="true"});vMapel();});}
+function saveJ(id){const nm=$("j_nm").value.trim();if(!nm)return alert("Nama mapel tidak boleh kosong.");const b=$("j_b").value,t=$("j_t").value,n=Math.max(0,Math.min(9999,parseInt($("j_n").value,10)||0));
+ T(async()=>{await db.upd("mapel","id=eq."+id,{nama:nm,tugas_aktif:$("j_tg").value==="true",maks_tambah:Math.max(0,Math.min(9999,parseInt($("j_mt").value,10)||0)),jumlah_tampil:Math.max(0,parseInt($("j_jt").value,10)||0),aktif:$("j_a").value==="true",buka:b?new Date(b).toISOString():null,tutup:t?new Date(t).toISOString():null,nyawa:n,kkm:Math.max(0,Math.min(100,parseInt($("j_k").value,10)||0)),bobot_sama:$("j_w").value==="true"});vMapel();});}
 function vToken(id){T(async()=>{
  const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("token","mapel_id=eq."+id+"&select=kode,pemilik,dipakai"),R=await all("siswa","select=nama&kelas_id=eq."+KL+"&order=nama");
  const has=new Set(L.map(x=>(x.pemilik||"").toLowerCase())),baru=R.filter(x=>!has.has(x.nama.toLowerCase()));
