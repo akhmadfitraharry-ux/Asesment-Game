@@ -143,11 +143,11 @@ async function mulai(){
   const d=await rpc("mulai",{p_kelas:kelas,p_kode:kode,p_nama:nama});
   if(d.galat)return home(d.galat);
   S={kode,mapel:d.mapel,nama:d.nama};LAST={t:"",n:""};
-  SOAL=d.soal;TOT=SOAL.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=d.nyawa>0?d.nyawa:Infinity;PV=null;ACT=true;KEL=0;
+  SOAL=d.soal;TOT=SOAL.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=d.nyawa>0?d.nyawa:Infinity;PV=null;ACT=true;KEL=0;TG=d.tugas||{aktif:false,maks:0,tambah:0,tersedia:0};
   let fin=false;
-  if(d.lanjut){const sd=new Set(d.sudah);i=SOAL.findIndex(x=>!sd.has(x.id));correct=d.benar;got=d.got;if(d.nyawa>0)lives=d.nyawa-d.salah;fin=i<0||lives<=0;}
+  if(d.lanjut){const sd=new Set(d.sudah);i=SOAL.findIndex(x=>!sd.has(x.id));correct=d.benar;got=d.got;if(d.nyawa>0)lives=d.nyawa-d.salah+(TG.tambah||0);fin=i<0||lives<=0;}
   $("ov").style.display="none";
-  if(fin){i=Math.max(0,i);finish();}else{load();if(d.lanjut)$("m").textContent="↻ Melanjutkan pengerjaanmu...";}
+  if(fin){if(i>=0&&lives<=0&&canTask())tawarTugas();else{i=Math.max(0,i);finish();}}else{load();if(d.lanjut)$("m").textContent="↻ Melanjutkan pengerjaanmu...";}
  }catch(e){home(e.message);}
 }
 function load(){
@@ -162,7 +162,7 @@ function load(){
  if(isi)setTimeout(()=>{const e=$("isi_t");if(e)e.focus();},200);
 }
 function fit(){const w=$("cw");if(!w||!w.clientHeight)return;const c=$("c"),x=Math.max(120,Math.floor(Math.min(w.clientWidth,w.clientHeight*320/300)));c.style.width=x+"px";c.style.height=Math.round(x*300/320)+"px";}
-function hud(){$("lf").textContent=lives===Infinity?"❤️ ∞":"❤️".repeat(Math.max(0,lives));$("sc").textContent=PV?"Skor: "+Math.round(100*got/TOT):"";}
+function hud(){$("lf").textContent=(lives===Infinity?"❤️ ∞":"❤️".repeat(Math.max(0,lives)))+(canTask()?" 🎁":"");$("sc").textContent=PV?"Skor: "+Math.round(100*got/TOT):"";}
 async function answer(k){
  if(lock)return;lock=true;res=k;let r;
  try{
@@ -174,7 +174,7 @@ async function answer(k){
  if(k!==resKey&&r.penjelasan){$("pj").innerHTML="<b>💡 Pembahasan:</b> "+esc(r.penjelasan)+'<div class="ctr"><button onclick="nextQ()">Lanjut ▶</button></div>';$("pj").style.display="block";return;}
  setTimeout(nextQ,1500);
 }
-function nextQ(){$("pj").style.display="none";$("m").style.color="";i++;(lives>0&&i<SOAL.length)?load():finish();}
+function nextQ(){$("pj").style.display="none";$("m").style.color="";i++;if(i>=SOAL.length)return finish();if(lives>0)return load();if(canTask())return tawarTugas();finish();}
 async function finish(){
  if(PV){lock=true;const n=Math.round(100*got/TOT),sa=PV.sid?"'"+PV.sid+"'":"null";
   overlay(`<div class="ctr"><h1>👁 Pratinjau selesai</h1><div class="sub">Hasil percobaan ini tidak disimpan.</div><div style="font-size:48px;font-weight:800">${n}</div><div class="sub">Benar ${correct} dari ${SOAL.length} soal</div><button onclick="preview('${PV.mid}',${sa})">↻ Coba lagi</button> <button class="s" onclick="endPV()">← Kembali ke soal</button></div>`);return;}
@@ -193,6 +193,7 @@ function tick(dt){
  if(dx)P.f=dx;
  P.x=Math.max(4,Math.min(316-P.w,P.x+dx*v));P.y=Math.max(20,Math.min(296-P.h,P.y+dy*v));
  pads.forEach(p=>{if(P.x+P.w>p.x+6&&P.x<p.x+p.w-6&&P.y<p.y+p.h-4&&P.y+P.h>p.y+10)answer(p.k);});
+ if(!lock&&canTask()&&P.x+P.w>36&&P.x<100&&P.y+P.h>240&&P.y<292)bukaTugas("pos");
 }
 /* ===== Gambar arena ===== */
 const g=$("c").getContext("2d"),W=320,H=300;
@@ -211,6 +212,8 @@ function draw(t){
  });
  tree(14,130);tree(306,130);tree(14,200);tree(306,200);tree(14,270);tree(306,270);
  const b=Math.sin(t/300)*2;npc(40,150+b);npc(266,170-b);
+ if(canTask()){g.fillStyle="#b45309";g.fillRect(36,240,64,16);g.fillStyle="#fef3c7";g.fillRect(38,256,60,36);g.fillStyle="#92400e";g.fillRect(64,266,16,26);
+  g.textAlign="center";g.font="bold 9px monospace";g.fillStyle="#fff";g.fillText("TUGAS",68,252);g.fillStyle="#dc2626";g.fillText("+1♥",51,278);}
  const px=P.x,py=P.y;
  g.fillStyle="rgba(0,0,0,.2)";g.fillRect(px,py+P.h-2,P.w,4);g.fillStyle=CHS[CH].r;g.fillRect(px+1,py,14,8);
  g.fillStyle="#f1c9a0";g.fillRect(px+3,py+4,10,7);g.fillStyle="#000";g.fillRect(px+(P.f>0?9:4),py+6,2,2);
@@ -257,23 +260,26 @@ function hapus(id){if(confirm("Hapus mapel beserta soal, token, dan hasilnya?"))
 const hdr=(t,b)=>`<div class="hd"><button class="s m" onclick="${b}">‹ Kembali</button><h1>${t}</h1><button class="s m" onclick="home()">✕ Tutup</button></div>`;
 function readImg(file,max=800){return new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.7));};im.onerror=()=>no(new Error("Gambar tidak terbaca."));im.src=fr.result;};fr.readAsDataURL(file);});}
 function vSoal(id){T(async()=>{
- const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("soal","mapel_id=eq."+id+"&order=created_at&select=id,tanya,kunci,bobot,tipe,a");
- const bs=m.bobot_sama!==false,TT=m.jumlah_tampil>0?Math.min(m.jumlah_tampil,L.length):L.length;
+ const [m]=await db.sel("mapel","id=eq."+id),L0=await db.sel("soal","mapel_id=eq."+id+"&order=created_at&select=id,tanya,kunci,bobot,tipe,a,untuk");
+ const L=L0.filter(x=>x.untuk!=="tugas"),TL=L0.filter(x=>x.untuk==="tugas"),bs=m.bobot_sama!==false,TT=m.jumlah_tampil>0?Math.min(m.jumlah_tampil,L.length):L.length;
  overlay(`${hdr("Soal: "+esc(m.nama),"vMapel()")}
  <button onclick="vForm('${id}')">+ Tambah soal</button>
  <button class="s" style="width:100%" onclick="vImpor('${id}')">📥 Impor dari berkas Word, PDF, foto</button>
  <button class="s" style="width:100%" onclick="preview('${id}')">▶ Coba soal (pratinjau)</button>
+ <button class="s" style="width:100%" onclick="vForm('${id}','','tugas')">🎁 + Tambah tugas penambah nyawa</button>
  <div class="sub l" style="margin:14px 0 6px;font-size:14px">${L.length} soal${bs&&L.length?" · tiap soal bernilai "+(+(100/TT).toFixed(2))+" poin":""}${m.jumlah_tampil>0&&m.jumlah_tampil<L.length?" · tiap siswa mendapat "+m.jumlah_tampil+" soal acak":""}. Siswa tidak pernah melihat kunci jawaban.</div>
- ${L.map((s,n)=>`<div class="it" style="align-items:flex-start"><span class="badge">${n+1}</span><span style="flex:1;font-size:14px">${esc(s.tanya)}<br><small style="opacity:.7">${s.tipe==="isian"?"Isian · jawaban: <b>"+esc(s.a)+"</b>":"Kunci: <b>"+LET[s.kunci]+"</b>"}${bs?"":" · bobot "+s.bobot}</small></span><span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"><button class="m s" onclick="preview('${id}','${s.id}')">▶</button><button class="m s" onclick="vForm('${id}','${s.id}')">Ubah</button><button class="m s" onclick="delSoal('${s.id}','${id}')">Hapus</button></span></div>`).join("")}`);
+ ${L.map((s,n)=>`<div class="it" style="align-items:flex-start"><span class="badge">${n+1}</span><span style="flex:1;font-size:14px">${esc(s.tanya)}<br><small style="opacity:.7">${s.tipe==="isian"?"Isian · jawaban: <b>"+esc(s.a)+"</b>":"Kunci: <b>"+LET[s.kunci]+"</b>"}${bs?"":" · bobot "+s.bobot}</small></span><span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"><button class="m s" onclick="preview('${id}','${s.id}')">▶</button><button class="m s" onclick="vForm('${id}','${s.id}')">Ubah</button><button class="m s" onclick="delSoal('${s.id}','${id}')">Hapus</button></span></div>`).join("")}
+ ${TL.length?`<div class="sub l" style="margin:16px 0 6px;font-size:14px"><b>🎁 Tugas penambah nyawa (${TL.length})</b> · ${m.tugas_aktif?"aktif":"nonaktif"} (atur di ⚙ Atur)</div>`+TL.map(s=>`<div class="it" style="align-items:flex-start"><span class="badge" style="background:#f59e0b">🎁</span><span style="flex:1;font-size:14px">${esc(s.tanya)}<br><small style="opacity:.7">${s.tipe==="isian"?"Isian · jawaban: <b>"+esc(s.a)+"</b>":"Kunci: <b>"+LET[s.kunci]+"</b>"}</small></span><span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"><button class="m s" onclick="vForm('${id}','${s.id}')">Ubah</button><button class="m s" onclick="delSoal('${s.id}','${id}')">Hapus</button></span></div>`).join(""):""}`);
 });}
-function vForm(mid,sid){T(async()=>{
- let s={tanya:"",tipe:"pg",a:"",b:"",c:"",d:"",kunci:0,bobot:1,gambar:null,penjelasan:""};
+function vForm(mid,sid,untuk){T(async()=>{
+ let s={tanya:"",tipe:"pg",a:"",b:"",c:"",d:"",kunci:0,bobot:1,gambar:null,penjelasan:"",untuk:untuk||"asesmen"};
  if(sid){const r=await db.sel("soal","id=eq."+sid);s=r[0];}
  const bs=((await db.sel("mapel","id=eq."+mid))[0]||{}).bobot_sama!==false;
  window._img=s.gambar||null;window._kk=s.kunci;
  const isi=s.tipe==="isian",n=isi?"isi":(sid?(s.d?"4":s.c?"3":"2"):"4"),sel=v=>n===v?"selected":"";
  const gp=g=>g?`<img src="${g}" style="max-width:100%;max-height:140px;margin-top:6px;border-radius:8px"> <button class="m s" onclick="noImg()">Hapus gambar</button>`:"";
  overlay(`${hdr(sid?"Ubah soal":"Tambah soal","vSoal('"+mid+"')")}
+ <label>Jenis</label><select id="f_u"><option value="asesmen" ${s.untuk!=="tugas"?"selected":""}>Soal asesmen</option><option value="tugas" ${s.untuk==="tugas"?"selected":""}>🎁 Tugas penambah nyawa</option></select>
  <label>Pertanyaan</label><textarea id="f_q" style="min-height:90px">${esc(s.tanya)}</textarea>
  <label>Gambar (opsional)</label><input id="f_g" type="file" accept="image/*" onchange="pickImg(this)"><div id="f_gp">${gp(s.gambar)}</div>
  <label>Tipe soal</label><select id="f_n" onchange="optN()"><option value="4" ${sel("4")}>Pilihan ganda 4 (A, B, C, D)</option><option value="3" ${sel("3")}>Pilihan ganda 3 (A, B, C)</option><option value="2" ${sel("2")}>Benar / Salah</option><option value="isi" ${sel("isi")}>Isian singkat</option></select>
@@ -297,18 +303,19 @@ async function pickImg(el){const f=el.files[0];if(!f)return;try{window._img=awai
 function noImg(){window._img=null;$("f_gp").innerHTML="";$("f_g").value="";}
 function saveSoal(mid,sid){
  const v=k=>$(k).value.trim(),t=$("f_n").value,isi=t==="isi",n=isi?0:+t;
- const r={tanya:v("f_q"),tipe:isi?"isian":"pg",a:isi?v("f_ai"):v("f_a"),b:isi?null:v("f_b"),c:n>=3?v("f_c"):null,d:n>=4?v("f_d"):null,
+ const r={tanya:v("f_q"),untuk:$("f_u").value,tipe:isi?"isian":"pg",a:isi?v("f_ai"):v("f_a"),b:isi?null:v("f_b"),c:n>=3?v("f_c"):null,d:n>=4?v("f_d"):null,
   kunci:isi?0:+$("f_k").value,bobot:Math.max(1,+$("f_w").value||1),gambar:window._img||null,penjelasan:v("f_p")||null};
  if(!r.tanya||!r.a||(!isi&&!r.b)||(n>=3&&!r.c)||(n>=4&&!r.d))return alert("Lengkapi pertanyaan dan jawaban/pilihan.");
  T(async()=>{if(sid)await db.upd("soal","id=eq."+sid,r);else await db.ins("soal",[{...r,mapel_id:mid}]);vSoal(mid);});
 }
 function preview(mid,sid){ac();T(async()=>{
  const [m]=await db.sel("mapel","id=eq."+mid);
- let L=await db.sel("soal","mapel_id=eq."+mid+(sid?"&id=eq."+sid:"")+"&order=created_at");
+ let L=await db.sel("soal","mapel_id=eq."+mid+(sid?"&id=eq."+sid:"&untuk=eq.asesmen")+"&order=created_at");
  if(!L.length)return alert("Belum ada soal.");
  if(!sid)L=shuf(L);
  if(m.bobot_sama!==false)L=L.map(x=>({...x,bobot:1}));
  PV={mid,sid:sid||null};S={kode:"PRATINJAU",mapel:m.nama,nama:"Pratinjau",nyawa:m.nyawa};
+ PVT=await db.sel("soal","mapel_id=eq."+mid+"&untuk=eq.tugas");PVU=new Set();TG={aktif:m.tugas_aktif===true&&PVT.length>0&&m.nyawa>0,maks:m.maks_tambah==null?3:m.maks_tambah,tambah:0,tersedia:PVT.length};
  SOAL=L;TOT=L.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=m.nyawa>0?m.nyawa:Infinity;
  $("pvb").style.display="flex";$("ov").style.display="none";load();
 });}
@@ -386,6 +393,9 @@ function vJadwal(id){T(async()=>{
  <label>Tutup (kosong = tidak dibatasi)</label><input id="j_t" type="datetime-local" value="${loc(m.tutup)}">
  <label>❤️ Jumlah nyawa (hati)</label><input id="j_n" type="number" min="0" max="10" value="${m.nyawa==null?3:m.nyawa}">
  <div class="sub l">Nyawa berkurang setiap jawaban salah. Jika habis, asesmen berhenti. Isi 0 untuk nyawa tanpa batas.</div>
+ <label>🎁 Tugas penambah nyawa</label><select id="j_tg"><option value="false" ${m.tugas_aktif?"":"selected"}>Nonaktif</option><option value="true" ${m.tugas_aktif?"selected":""}>Aktif</option></select>
+ <label>Maksimal nyawa tambahan</label><input id="j_mt" type="number" min="0" max="10" value="${m.maks_tambah==null?3:m.maks_tambah}">
+ <div class="sub l">Jika aktif, siswa bisa ke Pos Tugas di arena dan mengerjakan tugas untuk menambah nyawa. Buat tugasnya lewat Soal › 🎁 Tambah tugas. Hanya berlaku jika nyawa dibatasi.</div>
  <label>🎲 Jumlah soal per siswa</label><input id="j_jt" type="number" min="0" value="${m.jumlah_tampil||0}">
  <div class="sub l">0 = semua soal. Isi lebih kecil dari jumlah soal di bank agar tiap siswa mendapat kumpulan soal acak yang berbeda.</div>
  <label>⚖️ Bobot soal</label><select id="j_w"><option value="true" ${m.bobot_sama!==false?"selected":""}>Sama rata (otomatis)</option><option value="false" ${m.bobot_sama===false?"selected":""}>Atur per soal</option></select>
@@ -395,7 +405,7 @@ function vJadwal(id){T(async()=>{
  <div class="ctr"><button onclick="saveJ('${id}')">Simpan</button></div>`);
 });}
 function saveJ(id){const nm=$("j_nm").value.trim();if(!nm)return alert("Nama mapel tidak boleh kosong.");const b=$("j_b").value,t=$("j_t").value,n=Math.max(0,Math.min(10,parseInt($("j_n").value,10)||0));
- T(async()=>{await db.upd("mapel","id=eq."+id,{nama:nm,jumlah_tampil:Math.max(0,parseInt($("j_jt").value,10)||0),aktif:$("j_a").value==="true",buka:b?new Date(b).toISOString():null,tutup:t?new Date(t).toISOString():null,nyawa:n,kkm:Math.max(0,Math.min(100,parseInt($("j_k").value,10)||0)),bobot_sama:$("j_w").value==="true"});vMapel();});}
+ T(async()=>{await db.upd("mapel","id=eq."+id,{nama:nm,tugas_aktif:$("j_tg").value==="true",maks_tambah:Math.max(0,Math.min(10,parseInt($("j_mt").value,10)||0)),jumlah_tampil:Math.max(0,parseInt($("j_jt").value,10)||0),aktif:$("j_a").value==="true",buka:b?new Date(b).toISOString():null,tutup:t?new Date(t).toISOString():null,nyawa:n,kkm:Math.max(0,Math.min(100,parseInt($("j_k").value,10)||0)),bobot_sama:$("j_w").value==="true"});vMapel();});}
 function vToken(id){T(async()=>{
  const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("token","mapel_id=eq."+id+"&select=kode,pemilik,dipakai"),R=await all("siswa","select=nama&kelas_id=eq."+KL+"&order=nama");
  const has=new Set(L.map(x=>(x.pemilik||"").toLowerCase())),baru=R.filter(x=>!has.has(x.nama.toLowerCase()));
@@ -466,7 +476,7 @@ function dash(err){
  <select id="d_s" onchange="DS=this.value;tbl()"><option value="">Semua status</option><option value="T" ${DS==="T"?"selected":""}>Tuntas</option><option value="R" ${DS==="R"?"selected":""}>Remedial</option></select>
  <div class="g2"><input id="d_q" placeholder="Cari nama siswa..." value="${esc(DQ)}" oninput="DQ=this.value.toLowerCase();tbl()" style="margin:0"><button class="s" style="margin:0" onclick="adm()">↻ Muat ulang</button></div>
  <button class="s m" onclick="copy(linkSiswa())">🔗 Salin link siswa</button><button class="s m" onclick="kartuPick()">🪪 Kartu token (PDF)</button><button class="s m" onclick="vAnalisis()">📊 Analisis soal</button>
- <button class="m o" onclick="X(expPDF)">Unduh PDF</button><button class="m" onclick="X(expXLS)">Unduh Excel</button><button class="m s" onclick="expCSV()">Unduh CSV</button><button class="m s" onclick="copy(rowsF().filter(x=>x.nilai<kk(x)).map(x=>x.nama).join('\n')||'Tidak ada siswa remedial')">📋 Salin daftar remedial</button>
+ <button class="m o" onclick="X(expPDF)">Unduh PDF</button><button class="m" onclick="X(expXLS)">Unduh Excel</button><button class="m s" onclick="expCSV()">Unduh CSV</button><button class="m s" onclick="copy(rowsF().filter(x=>x.nilai<kk(x)).map(x=>x.nama).join('\n')||'Tidak ada siswa remedial')">📋 Salin daftar remedial</button><button class="m s" onclick="ulangSemua()">↺ Ulang semua (yang tampil)</button>
  <div id="sm" class="sub l" style="margin-top:8px"></div><div class="tw"><table id="tb"></table></div>
  <label>RESET TOKEN AGAR BISA DIPAKAI ULANG</label><input id="d_r" placeholder="Kode token" style="text-transform:uppercase"><button class="s m" onclick="resetKode()">Reset token</button>
  <div class="card zona"><b style="letter-spacing:1px;font-size:13px">ZONA HAPUS DATA</b>
@@ -479,16 +489,16 @@ function dash(err){
 function tbl(){
  const F=rowsF(),R=rowsX(),t=F.filter(x=>x.nilai>=kk(x)).length,av=F.length?Math.round(F.reduce((a,x)=>a+x.nilai,0)/F.length):0;
  $("sm").textContent=F.length?F.length+" selesai · "+t+" tuntas · "+(F.length-t)+" remedial · rata-rata "+av:"";
- $("tb").innerHTML="<tr>"+HEAD.map(h=>`<th>${h}</th>`).join("")+"<th>Aksi</th></tr>"+(R.length?R.map(r=>`<tr class="clk" onclick="vDetail('${esc(r[3])}')">`+r.map((c,k)=>k===7?`<td class="${c==="Tuntas"?"st-t":"st-r"}">${c}</td>`:`<td>${esc(c)}</td>`).join("")+`<td><button class="m s" style="margin:0" onclick="event.stopPropagation();resetHasil('${esc(r[3])}')">↺ Reset</button></td></tr>`).join(""):`<tr><td colspan="10" style="text-align:center;opacity:.7">Belum ada hasil</td></tr>`);}
+ $("tb").innerHTML="<tr>"+HEAD.map(h=>`<th>${h}</th>`).join("")+"<th>Aksi</th></tr>"+(R.length?R.map(r=>`<tr class="clk" onclick="vDetail('${esc(r[3])}')">`+r.map((c,k)=>k===7?`<td class="${c==="Tuntas"?"st-t":"st-r"}">${c}</td>`:`<td>${esc(c)}</td>`).join("")+`<td><button class="m s" style="margin:0" onclick="event.stopPropagation();ulangToken('${esc(r[3])}')">↺ Ulang</button></td></tr>`).join(""):`<tr><td colspan="10" style="text-align:center;opacity:.7">Belum ada hasil</td></tr>`);}
 function vDetail(k){T(async()=>{
  const [h]=await db.sel("hasil","kode=eq."+k+"&select=*,mapel(nama,kkm)"),L=await db.sel("jawaban","kode=eq."+k+"&select=pilih,benar,teks,soal(tanya,a,b,c,d,kunci,tipe)");
  const st=h.nilai>=kk(h)?"Tuntas":"Remedial";
  overlay(`<h1>${esc(h.nama)}</h1><div class="sub">${esc(h.mapel&&h.mapel.nama)} · Nilai <b>${h.nilai}</b> · <b class="${st==="Tuntas"?"st-t":"st-r"}">${st}</b> (KKM ${kk(h)})</div>
- <div class="sub l">${h.benar} benar dari ${h.total} soal${L.length<h.total?` · ${h.total-L.length} soal belum terjawab`:""}${h.keluar?` · <b style="color:var(--no)">keluar halaman ${h.keluar}×</b>`:""}</div>
+ <div class="sub l">${h.benar} benar dari ${h.total} soal${L.length<h.total?` · ${h.total-L.length} soal belum terjawab`:""}${h.keluar?` · <b style="color:var(--no)">keluar halaman ${h.keluar}×</b>`:""}${h.tambah?` · nyawa tambahan ${h.tambah}`:""}</div>
  ${L.sort((a,b)=>a.benar-b.benar).map(x=>{const so=x.soal||{},isi=so.tipe==="isian",o=[so.a,so.b,so.c,so.d];
   const js=isi?esc(x.teks||"(kosong)"):(x.pilih<0?"tidak menjawab":LET[x.pilih]+". "+esc(o[x.pilih])),kc=isi?esc((so.a||"").split("|")[0].trim()):(LET[so.kunci]+". "+esc(o[so.kunci]));
   return `<div class="it" style="align-items:flex-start"><span class="badge" style="${x.benar?"":"background:var(--no)"}">${x.benar?"✔":"✖"}</span><span style="flex:1;font-size:13px">${esc(so.tanya)}<br><small>Jawaban siswa: <b>${js}</b>${x.benar?"":` · Kunci: <b>${kc}</b>`}</small></span></div>`;}).join("")}
- <div class="ctr"><button class="m" style="background:#c2410c" onclick="resetHasil('${esc(k)}')">↺ Reset token siswa ini</button></div>
+ <div class="ctr"><button class="m" style="background:#c2410c" onclick="ulangToken('${esc(k)}')">↺ Izinkan mengulang</button><button class="m s" onclick="resetHasil('${esc(k)}')">🗑️ Reset &amp; hapus nilai</button></div>
  <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
 });}
 function expCSV(){const q=v=>'"'+String(v).replace(/"/g,'""')+'"';dl("hasil.csv",new Blob(["\ufeff"+[HEAD,...rowsX()].map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"}));}
@@ -534,6 +544,13 @@ function vBackup(){overlay(`<h1>💾 Cadangan</h1><div class="sub">Simpan semua 
 function resetKode(){const k=$("d_r").value.trim().toUpperCase();if(!k)return;
  T(async()=>{if(!(await db.sel("token","kode=eq."+k+"&select=kode")).length)return alert("Token tidak ditemukan.");
  await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});alert("Token "+k+" direset.");adm();});}
+async function ulangKode(ks){for(let n=0;n<ks.length;n+=40){const L="("+ks.slice(n,n+40).join(",")+")";await db.del("jawaban","kode=in."+L);await db.upd("token","kode=in."+L,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});}}
+function ulangToken(k){const x=DATA.h.find(h=>h.kode===k)||{};
+ if(confirm("Izinkan "+(x.nama||k)+" mengulang? Jawaban sebelumnya dihapus, tetapi nilai lama tetap tersimpan sampai siswa menyelesaikan ulangan baru."))
+  T(async()=>{await ulangKode([k]);adm();});}
+function ulangSemua(){const R=rowsF();if(!R.length)return alert("Tidak ada siswa pada daftar yang tampil.");
+ if(confirm("Izinkan "+R.length+" siswa (sesuai filter yang tampil) mengulang? Jawaban sebelumnya dihapus, tetapi nilai lama tetap tersimpan sampai siswa menyelesaikan ulangan baru."))
+  T(async()=>{await ulangKode(R.map(x=>x.kode));alert(R.length+" siswa bisa mengulang.");adm();});}
 function resetHasil(k){const x=DATA.h.find(h=>h.kode===k)||{};
  if(confirm("Reset token milik "+(x.nama||k)+"? Nilai dan jawabannya dihapus, lalu siswa bisa mengerjakan ulang."))
   T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});adm();});}
@@ -567,6 +584,65 @@ async function kirimIsian(){
  hud();
  if(!r.benar&&r.penjelasan){$("pj").innerHTML="<b>💡 Pembahasan:</b> "+esc(r.penjelasan)+'<div class="ctr"><button onclick="nextQ()">Lanjut ▶</button></div>';$("pj").style.display="block";return;}
  setTimeout(nextQ,1500);
+}
+/* ===== Tugas penambah nyawa ===== */
+let TG={aktif:false,maks:0,tambah:0,tersedia:0},TUGAS=null,TMODE="pos",PVT=[],PVU=new Set();
+const canTask=()=>!!(TG.aktif&&lives!==Infinity&&TG.tambah<TG.maks&&TG.tersedia>0);
+const normT=t=>(t||"").trim().toLowerCase().replace(/\s+/g," ");
+async function apiTugas(op,x){
+ if(!PV){
+  if(op==="ambil")return await rpc("ambil_tugas",{p_kode:S.kode});
+  return await rpc("cek_tugas",{p_kode:S.kode,p_soal:TUGAS.id,p_pilih:x.pilih==null?-1:x.pilih,p_teks:x.teks||null});
+ }
+ if(op==="ambil"){
+  const sisa=PVT.filter(t=>!PVU.has(t.id));
+  if(!sisa.length||TG.tambah>=TG.maks)return{kosong:true};
+  const t=sisa[Math.floor(Math.random()*sisa.length)],m=t.tipe==="isian";
+  return{id:t.id,tanya:t.tanya,tipe:t.tipe,a:m?null:t.a,b:m?null:t.b,c:m?null:t.c,d:m?null:t.d,gambar:t.gambar};
+ }
+ const t=PVT.find(z=>z.id===TUGAS.id);PVU.add(t.id);
+ const ok=t.tipe==="isian"?(!!normT(x.teks)&&(t.a||"").split("|").some(v=>normT(v)===normT(x.teks))):x.pilih===t.kunci;
+ const beri=ok&&TG.tambah<TG.maks;
+ return{benar:ok,ok_nyawa:beri,kunci:t.kunci,kunci_teks:(t.a||"").split("|")[0].trim(),penjelasan:t.penjelasan,tambah:TG.tambah+(beri?1:0),tersedia:PVT.filter(z=>!PVU.has(z.id)).length};
+}
+async function bukaTugas(mode){
+ if(window._tbusy)return;window._tbusy=true;TMODE=mode||"pos";lock=true;P.x=152;P.y=200;
+ let t;
+ try{t=await apiTugas("ambil");}catch(e){window._tbusy=false;if(TMODE==="pos")lock=false;alert("Koneksi bermasalah: "+e.message);return;}
+ if(!t||t.kosong){TG.tersedia=0;hud();overlay(`<div class="ctr"><h1>Tidak ada tugas lagi</h1><p style="font-size:14px">Semua tugas sudah dikerjakan atau batas nyawa tambahan tercapai.</p><button onclick="tutupTugas()">OK</button></div>`);return;}
+ TUGAS=t;
+ const isi=t.tipe==="isian",o=[t.a,t.b,t.c,t.d].filter(x=>x!=null&&x!=="");
+ overlay(`<h1>📝 Tugas Nyawa</h1><div class="sub">Jawab dengan benar untuk mendapat +1 ❤️ · Tugas tersisa: ${TG.tersedia}</div>
+ <div class="card" style="font-weight:700;font-size:15px">${esc(t.tanya)}${t.gambar?`<img src="${t.gambar}" style="display:block;max-width:100%;max-height:150px;margin:8px auto 0;border-radius:8px">`:""}</div>
+ ${isi?`<input id="tg_t" autocomplete="off" placeholder="Ketik jawabanmu..." style="margin-top:10px" onkeydown="if(event.key==='Enter')jawabTugasIsian()"><div class="ctr"><button onclick="jawabTugasIsian()">Kirim ▶</button></div>`:o.map((x,k)=>`<button class="s" style="width:100%;text-align:left" onclick="jawabTugas(${k})"><b>${LET[k]}.</b> ${esc(x)}</button>`).join("")}
+ ${TMODE==="pos"?`<div class="ctr"><button class="s m" onclick="tutupTugas()">← Kembali ke permainan</button></div>`:""}`);
+}
+function jawabTugas(k){kirimTugas({pilih:k});}
+function jawabTugasIsian(){const t=($("tg_t")&&$("tg_t").value||"").trim();if(t)kirimTugas({teks:t});}
+async function kirimTugas(x){
+ let r;
+ try{r=await apiTugas("cek",x);}catch(e){alert("Koneksi bermasalah: "+e.message);return;}
+ TG.tambah=r.tambah;TG.tersedia=r.tersedia;
+ if(r.benar&&r.ok_nyawa&&lives!==Infinity)lives++;
+ bunyi(!!r.benar);hud();
+ const t=TUGAS,kt=t.tipe==="isian"?esc(r.kunci_teks):LET[r.kunci]+". "+esc([t.a,t.b,t.c,t.d][r.kunci]);
+ const lagi=canTask();
+ overlay(`<div class="ctr"><div style="font-size:52px">${r.benar?"🎉":"😅"}</div><h1>${r.benar?(r.ok_nyawa?"Benar! +1 ❤️":"Benar!"):"Belum tepat"}</h1>
+ ${r.benar?(r.ok_nyawa?"":'<div class="sub">Batas nyawa tambahan sudah tercapai.</div>'):`<div class="sub">Jawaban: <b>${kt}</b></div>`}
+ ${r.penjelasan&&!r.benar?`<div class="pj" style="text-align:left"><b>💡 Pembahasan:</b> ${esc(r.penjelasan)}</div>`:""}
+ <div class="sub">❤️ Nyawamu: ${lives===Infinity?"∞":lives} · Tugas tersisa: ${TG.tersedia}</div>
+ ${lagi&&(TMODE==="pos"||lives<=0)?'<button onclick="window._tbusy=false;bukaTugas(TMODE)">📝 Tugas berikutnya</button><br>':""}
+ <button class="s m" onclick="tutupTugas()">${TMODE==="pos"?"▶ Lanjut bermain":(lives>0?"▶ Lanjut mengerjakan":"Selesai")}</button></div>`);
+}
+function tutupTugas(){
+ $("ov").style.display="none";window._tbusy=false;
+ if(TMODE==="pos"){lock=false;hud();return;}
+ if(lives>0)load();else if(canTask())tawarTugas();else finish();
+}
+function tawarTugas(){
+ lock=true;
+ overlay(`<div class="ctr"><div style="font-size:52px">💔</div><h1>Nyawa habis!</h1><p style="font-size:14px">Kerjakan tugas dulu untuk menambah nyawa, lalu lanjut mengerjakan. Tugas tersisa: ${TG.tersedia}.</p>
+ <button onclick="window._tbusy=false;bukaTugas('tawar')">📝 Kerjakan tugas</button><br><button class="s m" onclick="$('ov').style.display='none';finish()">Selesai saja</button></div>`);
 }
 /* ===== Kelas: banyak kelas dengan kode kelas ===== */
 let KL=null,KLO=null;
