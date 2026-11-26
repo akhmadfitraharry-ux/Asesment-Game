@@ -1,0 +1,20 @@
+# Simpan file ini di repositori GitHub Anda pada jalur: .github/workflows/keepalive.yml
+# Fungsinya: menyentuh database Supabase setiap 3 hari supaya proyek gratis tidak "tidur".
+# Tambahkan 2 secret di GitHub: Settings > Secrets and variables > Actions
+#   SUPABASE_URL  = https://tpqkdsipalhlenmihgwd.supabase.co (sama seperti di config.js)
+#   SUPABASE_KEY  = sb_publishable_5kuw3E_AvDK9MzZezqcYyg_rKMe8NlJ (sama seperti di config.js)
+name: Jaga Supabase tetap aktif
+on:
+  schedule:
+    - cron: "0 3 */3 * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -fsS -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/catat_keluar" \
+            -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"p_kode":"PING"}'

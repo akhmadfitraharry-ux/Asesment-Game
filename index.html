@@ -56,6 +56,7 @@ tr.clk{cursor:pointer}.st-t{color:#15803d;font-weight:700}.st-r{color:#c2410c;fo
 .ch{display:inline-block;width:36px;height:36px;border-radius:50%;margin:3px 4px;border:3px solid transparent;cursor:pointer}.ch.on{border-color:#f97316;transform:scale(1.15)}
 </style></head><body>
 <div id="app">
+<div id="net" style="display:none;background:#fecaca;color:#7f1d1d;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700;margin-bottom:6px">📡 Menunggu sinyal... jawabanmu dikirim otomatis begitu tersambung.</div>
 <div id="pvb" style="display:none;justify-content:space-between;align-items:center;background:#fde68a;color:#5b4300;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700;margin-bottom:6px">👁 Pratinjau: jawaban tidak disimpan <button onclick="endPV()" style="border:0;border-radius:8px;padding:4px 10px;font-weight:700">Keluar</button></div>
 <div class="bar"><span id="no">Lv 1</span><span id="lf"></span><span id="tm" onclick="togSuara()" style="cursor:pointer;font-size:16px">🔊</span><span id="sc">Skor: 0</span></div>
 <div class="q" id="q">Memuat...</div>
@@ -95,14 +96,14 @@ const fd=(x,d)=>x?new Date(x).toLocaleString("id-ID",{dateStyle:"short",timeStyl
 const loc=x=>{if(!x)return"";const d=new Date(x);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16);};
 const copy=t=>{try{navigator.clipboard.writeText(t);alert("Tersalin!");}catch(e){prompt("Salin teks ini:",t);}};
 /* ===== Layar siswa ===== */
-async function home(err){PV=null;$("pvb").style.display="none";overlay(`<div class="ctr"><img src="icon-192.png" alt="" width="92" height="92" style="border-radius:22px;box-shadow:0 6px 0 rgba(0,0,0,.12)"></div><h1 style="margin-top:10px">Asesmen Game</h1><div class="sub" style="font-size:14px">Isi kode kelas, namamu, dan token dari gurumu ✨</div>
+async function home(err){PV=null;LT=null;$("pvb").style.display="none";overlay(`<div class="ctr"><img src="icon-192.png" alt="" width="92" height="92" style="border-radius:22px;box-shadow:0 6px 0 rgba(0,0,0,.12)"></div><h1 style="margin-top:10px">Asesmen Game</h1><div class="sub" style="font-size:14px">Isi kode kelas, namamu, dan token dari gurumu ✨</div>
 <label>Kode kelas</label><input id="t_c" value="${esc(KODEK)}" placeholder="74VT83" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px" onchange="loadKelas()" oninput="if(this.value.trim().length>=6)loadKelas()">
 <div id="kinfo" class="sub l" style="min-height:16px"></div>
 <div id="nmw">${nameField()}</div>
 <label>Token ujian</label><input id="t_k" value="${esc(LAST.t)}" autocapitalize="characters" autocomplete="off" placeholder="CONTOH: ABC123" style="text-transform:uppercase;letter-spacing:2px">
-<label>Pilih karakter</label><div class="ctr">${CHS.map((c,k)=>`<span class="ch ${k===CH?"on":""}" style="background:linear-gradient(180deg,${c.r} 42%,${c.b} 42%)" onclick="pilihCh(${k})"></span>`).join("")}</div>
+<label>Pilih karakter</label><div class="ctr">${CHS.map((c,k)=>`<span class="ch ${k===CH?"on":""}" style="background:linear-gradient(180deg,${c.r} 42%,${c.b} 42%)" onclick="pilihCh(${k})"></span>`).join("")}</div>${lencanaRow()}
 <div class="err">${esc(err)}</div>
-<div class="ctr"><button style="background:#f97316;font-size:18px;padding:12px 32px" onclick="mulai()">▶ Mulai</button><br><button class="s m" onclick="guru()">🔑 Masuk Guru</button>${isStd()?"":'<br><button class="s m" style="background:#fff7d6;border-color:#fbbf24;box-shadow:0 4px 0 #fbbf24" onclick="pasang()">📲 Pasang di layar utama</button>'}</div>
+<div class="ctr"><button style="background:#f97316;font-size:18px;padding:12px 32px" onclick="mulai()">▶ Mulai</button><br><button class="s m" onclick="guru()">🔑 Masuk Guru</button><button class="s m" onclick="latihan()">🏋️ Latihan</button>${isStd()?"":'<br><button class="s m" style="background:#fff7d6;border-color:#fbbf24;box-shadow:0 4px 0 #fbbf24" onclick="pasang()">📲 Pasang di layar utama</button>'}</div>
 <div class="sub" style="margin-top:10px">❤️ Nyawa terbatas • jalan ke jawaban yang benar<br>Design by Akhmad Fitra Harry, S.Pd</div>`);if(KODEK&&!(KODEK in ROSTERS))loadKelas();}
 let PV=null,ord=[0,1,2,3],SOAL=[],S={},i=0,correct=0,lives=3,got=0,TOT=1,lock=true,res=null,resKey=null,P={x:152,y:240,w:16,h:20,f:1};
 const keys={};
@@ -143,11 +144,11 @@ async function mulai(){
   const d=await rpc("mulai",{p_kelas:kelas,p_kode:kode,p_nama:nama});
   if(d.galat)return home(d.galat);
   S={kode,mapel:d.mapel,nama:d.nama};LAST={t:"",n:""};
-  SOAL=d.soal;TOT=SOAL.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=d.nyawa>0?d.nyawa:Infinity;PV=null;ACT=true;KEL=0;TG=d.tugas||{aktif:false,maks:0,tambah:0,tersedia:0};
+  SOAL=d.soal;TOT=SOAL.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=d.nyawa>0?d.nyawa:Infinity;PV=null;ACT=true;KEL=0;TG=d.tugas||{aktif:false,maks:0,tambah:0,tersedia:0};TEMA=d.tema||"kelas";REM=!!d.remedial;LOST=d.lanjut?(d.salah||0):0;LT=null;
   let fin=false;
   if(d.lanjut){const sd=new Set(d.sudah);i=SOAL.findIndex(x=>!sd.has(x.id));correct=d.benar;got=d.got;if(d.nyawa>0)lives=d.nyawa-d.salah+(TG.tambah||0);fin=i<0||lives<=0;}
   $("ov").style.display="none";
-  if(fin){if(i>=0&&lives<=0&&canTask())tawarTugas();else{i=Math.max(0,i);finish();}}else{load();if(d.lanjut)$("m").textContent="↻ Melanjutkan pengerjaanmu...";}
+  if(fin){if(i>=0&&lives<=0&&canTask())tawarTugas();else{i=Math.max(0,i);finish();}}else{load();if(d.lanjut)$("m").textContent="↻ Melanjutkan pengerjaanmu...";else if(d.remedial)$("m").textContent="🎯 Ulangan remedial: kerjakan soal yang belum tepat.";}
  }catch(e){home(e.message);}
 }
 function load(){
@@ -166,9 +167,9 @@ function hud(){$("lf").textContent=(lives===Infinity?"❤️ ∞":lives>6?"❤�
 async function answer(k){
  if(lock)return;lock=true;res=k;let r;
  try{
-  r=PV?{kunci:SOAL[i].kunci,penjelasan:SOAL[i].penjelasan}:await rpc("cek2",{p_kode:S.kode,p_soal:SOAL[i].id,p_pilih:k<0?-1:ord[k]});resKey=ord.indexOf(r.kunci);
+  r=PV?{kunci:SOAL[i].kunci,penjelasan:SOAL[i].penjelasan}:LT?await rpcR("latihan_cek",{p_soal:SOAL[i].id,p_pilih:k<0?-1:ord[k]}):await rpcR("cek2",{p_kode:S.kode,p_soal:SOAL[i].id,p_pilih:k<0?-1:ord[k]});resKey=ord.indexOf(r.kunci);
   if(k===resKey){correct++;got+=SOAL[i].bobot||1;$("m").style.color="var(--ok)";$("m").textContent="✅ Benar! Hebat!";bunyi(true);}
-  else{lives--;$("m").style.color="var(--no)";$("m").textContent=(k<0?"⏰ Waktu habis! ":"❌ Salah. ")+"Jawaban: "+LET[resKey];bunyi(false);}
+  else{lives--;LOST++;$("m").style.color="var(--no)";$("m").textContent=(k<0?"⏰ Waktu habis! ":"❌ Salah. ")+"Jawaban: "+LET[resKey];bunyi(false);}
  }catch(e){$("m").textContent="Koneksi bermasalah, mencoba lagi...";res=null;setTimeout(()=>lock=false,1500);return;}
  hud();
  if(k!==resKey&&r.penjelasan){$("pj").innerHTML="<b>💡 Pembahasan:</b> "+esc(r.penjelasan)+'<div class="ctr"><button onclick="nextQ()">Lanjut ▶</button></div>';$("pj").style.display="block";return;}
@@ -178,10 +179,14 @@ function nextQ(){$("pj").style.display="none";$("m").style.color="";i++;if(i>=SO
 async function finish(){
  if(PV){lock=true;const n=Math.round(100*got/TOT),sa=PV.sid?"'"+PV.sid+"'":"null";
   overlay(`<div class="ctr"><h1>👁 Pratinjau selesai</h1><div class="sub">Hasil percobaan ini tidak disimpan.</div><div style="font-size:48px;font-weight:800">${n}</div><div class="sub">Benar ${correct} dari ${SOAL.length} soal</div><button onclick="preview('${PV.mid}',${sa})">↻ Coba lagi</button> <button class="s" onclick="endPV()">← Kembali ke soal</button></div>`);return;}
+ if(LT){lock=true;overlay(`<div class="ctr"><div style="font-size:52px">🏋️</div><h1>Latihan selesai!</h1><div class="sub">${esc(S.mapel)} · tidak dinilai</div><p style="font-size:15px">Benar <b>${correct}</b> dari ${SOAL.length} soal</p><button onclick="latMulai('${LT.id}')">↻ Latihan lagi</button> <button class="s" onclick="endLat()">Selesai</button></div>`);return;}
  lock=true;ACT=false;let r;
- try{r=await rpc("selesai",{p_kode:S.kode});}catch(e){r=null;}
+ busy("Mengirim jawaban...");
+ try{r=await rpcR("selesai",{p_kode:S.kode});}catch(e){r=null;}
+ const bd=hitungLencana();
  const t=lives<=0?"💔 Nyawa habis!":"🎉 Selesai! Kerja bagus!";
  overlay(`<div class="ctr"><div style="font-size:56px">${lives<=0?"💪":"🏆"}</div><h1>${t}</h1><b>${esc(S.nama)}</b><div class="sub">${esc(S.mapel)}</div>
+ ${bd.length?`<div style="margin:8px 0">${bd.map(k=>`<span class="pill" title="${BADGES[k][2]}" style="margin:2px;font-size:13px">${BADGES[k][0]} ${BADGES[k][1]}</span>`).join("")}</div>`:""}
  <p style="font-size:14px">${r?"Jawabanmu sudah tersimpan.<br>Nilai akan disampaikan oleh gurumu.":"⚠️ Koneksi bermasalah, jawabanmu belum terkirim. Buka lagi dengan token dan nama yang sama untuk mengirim ulang."}</p>
  <button onclick="home()">Selesai</button><div class="sub" style="margin-top:12px">Design by Akhmad Fitra Harry, S.Pd</div></div>`);
 }
@@ -200,8 +205,8 @@ const g=$("c").getContext("2d"),W=320,H=300;
 function tree(x,y){g.fillStyle="#7a4a21";g.fillRect(x-2,y,4,12);g.fillStyle="#2fa84f";g.beginPath();g.arc(x,y-2,10,0,7);g.fill();g.fillStyle="#1f8a3b";g.beginPath();g.arc(x+3,y,6,0,7);g.fill();}
 function npc(x,y){g.fillStyle="#5a3a22";g.fillRect(x,y,14,12);g.fillStyle="#f1c9a0";g.fillRect(x+2,y+3,10,8);g.fillStyle="#c0392b";g.fillRect(x+1,y+12,12,12);g.fillStyle="#fff";g.fillRect(x+5,y+14,5,6);}
 function draw(t){
- for(let r=0;r<15;r++)for(let c=0;c<16;c++){g.fillStyle=(r+c)%2?"#f6e8c8":"#f0dcb3";g.fillRect(c*20,r*20,20,20);}
- g.fillStyle="#8a6a52";g.fillRect(0,0,W,22);g.fillStyle="#fff";g.font="bold 11px monospace";g.textAlign="center";
+ for(let r=0;r<15;r++)for(let c=0;c<16;c++){g.fillStyle=(r+c)%2?TM().a:TM().b;g.fillRect(c*20,r*20,20,20);}
+ g.fillStyle=TM().bar;g.fillRect(0,0,W,22);g.fillStyle="#fff";g.font="bold 11px monospace";g.textAlign="center";
  g.fillText((S.mapel||"ASESMEN").toUpperCase().slice(0,36),W/2,15);
  pads.forEach(p=>{
   let c=COL[p.k];
@@ -210,7 +215,7 @@ function draw(t){
   g.strokeStyle="#fff";g.lineWidth=3;g.strokeRect(p.x+3,p.y+3,p.w-6,p.h-6);
   g.fillStyle="#fff";g.font="bold 30px monospace";g.fillText(LET[p.k],p.x+p.w/2,p.y+38);
  });
- tree(14,130);tree(306,130);tree(14,200);tree(306,200);tree(14,270);tree(306,270);
+ [[14,130],[306,130],[14,200],[306,200],[14,270],[306,270]].forEach(q=>deko(q[0],q[1]));
  const b=Math.sin(t/300)*2;npc(40,150+b);npc(266,170-b);
  if(canTask()){g.fillStyle="#b45309";g.fillRect(36,240,64,16);g.fillStyle="#fef3c7";g.fillRect(38,256,60,36);g.fillStyle="#92400e";g.fillRect(64,266,16,26);
   g.textAlign="center";g.font="bold 9px monospace";g.fillStyle="#fff";g.fillText("TUGAS",68,252);g.fillStyle="#dc2626";g.fillText("+1♥",51,278);}
@@ -218,7 +223,7 @@ function draw(t){
  g.fillStyle="rgba(0,0,0,.2)";g.fillRect(px,py+P.h-2,P.w,4);g.fillStyle=CHS[CH].r;g.fillRect(px+1,py,14,8);
  g.fillStyle="#f1c9a0";g.fillRect(px+3,py+4,10,7);g.fillStyle="#000";g.fillRect(px+(P.f>0?9:4),py+6,2,2);
  g.fillStyle=CHS[CH].b;g.fillRect(px+2,py+11,12,8);
- g.fillStyle="#333";g.font="9px monospace";g.fillText((S.nama||"kamu").slice(0,10),px+8,py-3);
+ g.fillStyle=TEMA==="angkasa"?"#fff":"#333";g.font="9px monospace";g.fillText((S.nama||"kamu").slice(0,10),px+8,py-3);
 }
 let last=0;
 function loop(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;tick(dt);draw(t);requestAnimationFrame(loop);}
@@ -314,10 +319,11 @@ function preview(mid,sid){ac();T(async()=>{
  if(!L.length)return alert("Belum ada soal.");
  if(!sid)L=shuf(L);
  if(m.bobot_sama!==false)L=L.map(x=>({...x,bobot:1}));
+ TEMA=m.tema||"kelas";LOST=0;REM=false;LT=null;
  PV={mid,sid:sid||null};S={kode:"PRATINJAU",mapel:m.nama,nama:"Pratinjau",nyawa:m.nyawa};
  PVT=await db.sel("soal","mapel_id=eq."+mid+"&untuk=eq.tugas");PVU=new Set();TG={aktif:m.tugas_aktif===true&&PVT.length>0&&m.nyawa>0,maks:m.maks_tambah==null?3:m.maks_tambah,tambah:0,tersedia:PVT.length};
  SOAL=L;TOT=L.reduce((a,x)=>a+(x.bobot||1),0)||1;got=0;i=0;correct=0;lives=m.nyawa>0?m.nyawa:Infinity;
- $("pvb").style.display="flex";$("ov").style.display="none";load();
+ pvBanner("👁 Pratinjau: jawaban tidak disimpan","endPV()");$("pvb").style.display="flex";$("ov").style.display="none";load();
 });}
 function endPV(){const m=PV&&PV.mid;PV=null;lock=true;$("pvb").style.display="none";m?vSoal(m):home();}
 function delSoal(sid,id){if(confirm("Hapus soal ini?"))T(async()=>{await db.del("soal","id=eq."+sid);vSoal(id);});}
@@ -393,6 +399,9 @@ function vJadwal(id){T(async()=>{
  <label>Tutup (kosong = tidak dibatasi)</label><input id="j_t" type="datetime-local" value="${loc(m.tutup)}">
  <label>❤️ Jumlah nyawa (hati)</label><input id="j_n" type="number" min="0" inputmode="numeric" value="${m.nyawa==null?3:m.nyawa}">
  <div class="sub l">Nyawa berkurang setiap jawaban salah. Jika habis, asesmen berhenti. Isi 0 untuk nyawa tanpa batas.</div>
+ <label>🎨 Tema arena</label><select id="j_tm">${[["kelas","🏫 Kelas"],["hutan","🌳 Hutan"],["lab","🔬 Laboratorium"],["pantai","🏖️ Pantai"],["angkasa","🚀 Angkasa"]].map(o=>`<option value="${o[0]}" ${(m.tema||"kelas")===o[0]?"selected":""}>${o[1]}</option>`).join("")}</select>
+ <label>🏋️ Mode latihan (tanpa token, tanpa nilai)</label><select id="j_lt"><option value="false" ${m.latihan_aktif?"":"selected"}>Nonaktif</option><option value="true" ${m.latihan_aktif?"selected":""}>Aktif</option></select>
+ <div class="sub l">Saat aktif, siswa bisa berlatih lewat tombol Latihan di layar awal dan melihat kunci setelah menjawab. Aktifkan sebelum atau sesudah asesmen, jangan saat ujian berlangsung.</div>
  <label>🎁 Tugas penambah nyawa</label><select id="j_tg"><option value="false" ${m.tugas_aktif?"":"selected"}>Nonaktif</option><option value="true" ${m.tugas_aktif?"selected":""}>Aktif</option></select>
  <label>Maksimal nyawa tambahan</label><input id="j_mt" type="number" min="0" inputmode="numeric" value="${m.maks_tambah==null?3:m.maks_tambah}">
  <div class="sub l">Jika aktif, siswa bisa ke Pos Tugas di arena dan mengerjakan tugas untuk menambah nyawa. Buat tugasnya lewat Soal › 🎁 Tambah tugas. Hanya berlaku jika nyawa dibatasi.</div>
@@ -405,7 +414,7 @@ function vJadwal(id){T(async()=>{
  <div class="ctr"><button onclick="saveJ('${id}')">Simpan</button></div>`);
 });}
 function saveJ(id){const nm=$("j_nm").value.trim();if(!nm)return alert("Nama mapel tidak boleh kosong.");const b=$("j_b").value,t=$("j_t").value,n=Math.max(0,Math.min(9999,parseInt($("j_n").value,10)||0));
- T(async()=>{await db.upd("mapel","id=eq."+id,{nama:nm,tugas_aktif:$("j_tg").value==="true",maks_tambah:Math.max(0,Math.min(9999,parseInt($("j_mt").value,10)||0)),jumlah_tampil:Math.max(0,parseInt($("j_jt").value,10)||0),aktif:$("j_a").value==="true",buka:b?new Date(b).toISOString():null,tutup:t?new Date(t).toISOString():null,nyawa:n,kkm:Math.max(0,Math.min(100,parseInt($("j_k").value,10)||0)),bobot_sama:$("j_w").value==="true"});vMapel();});}
+ T(async()=>{await db.upd("mapel","id=eq."+id,{nama:nm,tema:$("j_tm").value,latihan_aktif:$("j_lt").value==="true",tugas_aktif:$("j_tg").value==="true",maks_tambah:Math.max(0,Math.min(9999,parseInt($("j_mt").value,10)||0)),jumlah_tampil:Math.max(0,parseInt($("j_jt").value,10)||0),aktif:$("j_a").value==="true",buka:b?new Date(b).toISOString():null,tutup:t?new Date(t).toISOString():null,nyawa:n,kkm:Math.max(0,Math.min(100,parseInt($("j_k").value,10)||0)),bobot_sama:$("j_w").value==="true"});vMapel();});}
 function vToken(id){T(async()=>{
  const [m]=await db.sel("mapel","id=eq."+id),L=await db.sel("token","mapel_id=eq."+id+"&select=kode,pemilik,dipakai"),R=await all("siswa","select=nama&kelas_id=eq."+KL+"&order=nama");
  const has=new Set(L.map(x=>(x.pemilik||"").toLowerCase())),baru=R.filter(x=>!has.has(x.nama.toLowerCase()));
@@ -456,8 +465,8 @@ const dl=(n,b)=>{const a=document.createElement("a");a.href=URL.createObjectURL(
 const mNama=()=>(DATA.m.find(x=>x.id===DM)||{}).nama||"";
 const kk=x=>(x.mapel&&x.mapel.kkm!=null)?x.mapel.kkm:70;
 const rowsF=()=>DATA.h.filter(x=>(!DM||x.mapel_id===DM)&&(!DQ||(x.nama||"").toLowerCase().includes(DQ))&&(DS==="T"?x.nilai>=kk(x):DS==="R"?x.nilai<kk(x):true));
-const HEAD=["No","Nama","Mapel","Token","Benar","Salah","Nilai","Status","Keluar"];
-const rowsX=()=>rowsF().map((x,n)=>[n+1,x.nama||"",(x.mapel&&x.mapel.nama)||"",x.kode,x.benar,x.total-x.benar,x.nilai,x.nilai>=kk(x)?"Tuntas":"Remedial",x.keluar||0]);
+const HEAD=["No","Nama","Mapel","Token","Benar","Salah","Nilai","Status","Keluar","Nilai awal"];
+const rowsX=()=>rowsF().map((x,n)=>[n+1,x.nama||"",(x.mapel&&x.mapel.nama)||"",x.kode,x.benar,x.total-x.benar,x.nilai,x.nilai>=kk(x)?"Tuntas":"Remedial",x.keluar||0,x.nilai_awal==null?"":x.nilai_awal]);
 async function adm(err){
  busy("Memuat...");
  try{
@@ -469,14 +478,14 @@ async function adm(err){
  dash(err);
 }
 function dash(err){
- overlay(`<h1>Dasbor Guru</h1><div class="ctr"><span class="pill" style="font-size:14px">Kode kelas: <b style="letter-spacing:2px">${esc(KLO.kode)}</b></span><br><button class="m s" onclick="copy(KLO.kode)">📋 Salin kode</button><button class="m s" onclick="gantiKelas()">🏫 Ganti kelas</button></div><div class="sub">${esc([DATA.cfg.sekolah,DATA.cfg.kelas,DATA.cfg.tahun].filter(Boolean).join(" • "))}</div>
+ overlay(`<h1>Dasbor Guru</h1><div class="ctr"><span class="pill" style="font-size:14px">Kode kelas: <b style="letter-spacing:2px">${esc(KLO.kode)}</b></span><br><button class="m s" onclick="copy(KLO.kode)">📋 Salin kode</button><button class="m s" onclick="gantiKelas()">🏫 Ganti kelas</button></div>${bkInfo()}<div class="sub">${esc([DATA.cfg.sekolah,DATA.cfg.kelas,DATA.cfg.tahun].filter(Boolean).join(" • "))}</div>
  <div class="card" style="margin:8px 0;border-style:dashed">${DATA.live.length?`<b style="font-size:13px">Sedang mengerjakan (${DATA.live.length})</b>`+DATA.live.map(x=>`<div class="it"><span>${esc(x.nama)} <small>· ${esc(x.mapel&&x.mapel.nama)}</small><br><small>Soal ${x.terjawab||0}/${x.jumlah||0}${x.keluar?` · <b style="color:var(--no)">keluar halaman ${x.keluar}×</b>`:""}</small></span><button class="m s" onclick="doReset('${x.kode}')">↺ Reset</button></div>`).join(""):`<div class="sub" style="margin:0">Belum ada siswa yang sedang mengerjakan.</div>`}</div>
  <div class="g2"><button onclick="vMapel()">📚 Mapel &amp; Soal</button><button class="s" onclick="vSiswa()">👥 Daftar siswa</button><button class="s" onclick="vBackup()">💾 Cadangan</button><button class="s" onclick="vCfg()">⚙ Pengaturan kelas</button></div>
  <select id="d_m" onchange="DM=this.value;dash()"><option value="">Semua mata pelajaran</option>${DATA.m.map(m=>`<option value="${m.id}" ${DM===m.id?"selected":""}>${esc(m.nama)}</option>`).join("")}</select>
  <select id="d_s" onchange="DS=this.value;tbl()"><option value="">Semua status</option><option value="T" ${DS==="T"?"selected":""}>Tuntas</option><option value="R" ${DS==="R"?"selected":""}>Remedial</option></select>
  <div class="g2"><input id="d_q" placeholder="Cari nama siswa..." value="${esc(DQ)}" oninput="DQ=this.value.toLowerCase();tbl()" style="margin:0"><button class="s" style="margin:0" onclick="adm()">↻ Muat ulang</button></div>
  <button class="s m" onclick="copy(linkSiswa())">🔗 Salin link siswa</button><button class="s m" onclick="kartuPick()">🪪 Kartu token (PDF)</button><button class="s m" onclick="vAnalisis()">📊 Analisis soal</button>
- <button class="m o" onclick="X(expPDF)">Unduh PDF</button><button class="m" onclick="X(expXLS)">Unduh Excel</button><button class="m s" onclick="expCSV()">Unduh CSV</button><button class="m s" onclick="copy(rowsF().filter(x=>x.nilai<kk(x)).map(x=>x.nama).join('\n')||'Tidak ada siswa remedial')">📋 Salin daftar remedial</button><button class="m s" onclick="ulangSemua()">↺ Ulang semua (yang tampil)</button>
+ <button class="m o" onclick="X(expPDF)">Unduh PDF</button><button class="m" onclick="X(expXLS)">Unduh Excel</button><button class="m s" onclick="expCSV()">Unduh CSV</button><button class="m s" onclick="copy(rowsF().filter(x=>x.nilai<kk(x)).map(x=>x.nama).join('\n')||'Tidak ada siswa remedial')">📋 Salin daftar remedial</button><button class="m s" onclick="ulangSemua()">↺ Ulang semua (yang tampil)</button><button class="m s" onclick="remedialOto()">🎯 Remedial otomatis (yang tampil)</button>
  <div id="sm" class="sub l" style="margin-top:8px"></div><div class="tw"><table id="tb"></table></div>
  <label>RESET TOKEN AGAR BISA DIPAKAI ULANG</label><input id="d_r" placeholder="Kode token" style="text-transform:uppercase"><button class="s m" onclick="resetKode()">Reset token</button>
  <div class="card zona"><b style="letter-spacing:1px;font-size:13px">ZONA HAPUS DATA</b>
@@ -489,16 +498,16 @@ function dash(err){
 function tbl(){
  const F=rowsF(),R=rowsX(),t=F.filter(x=>x.nilai>=kk(x)).length,av=F.length?Math.round(F.reduce((a,x)=>a+x.nilai,0)/F.length):0;
  $("sm").textContent=F.length?F.length+" selesai · "+t+" tuntas · "+(F.length-t)+" remedial · rata-rata "+av:"";
- $("tb").innerHTML="<tr>"+HEAD.map(h=>`<th>${h}</th>`).join("")+"<th>Aksi</th></tr>"+(R.length?R.map(r=>`<tr class="clk" onclick="vDetail('${esc(r[3])}')">`+r.map((c,k)=>k===7?`<td class="${c==="Tuntas"?"st-t":"st-r"}">${c}</td>`:`<td>${esc(c)}</td>`).join("")+`<td><button class="m s" style="margin:0" onclick="event.stopPropagation();ulangToken('${esc(r[3])}')">↺ Ulang</button></td></tr>`).join(""):`<tr><td colspan="10" style="text-align:center;opacity:.7">Belum ada hasil</td></tr>`);}
+ $("tb").innerHTML="<tr>"+HEAD.map(h=>`<th>${h}</th>`).join("")+"<th>Aksi</th></tr>"+(R.length?R.map(r=>`<tr class="clk" onclick="vDetail('${esc(r[3])}')">`+r.map((c,k)=>k===7?`<td class="${c==="Tuntas"?"st-t":"st-r"}">${c}</td>`:`<td>${esc(c)}</td>`).join("")+`<td><button class="m s" style="margin:0" onclick="event.stopPropagation();ulangToken('${esc(r[3])}')">↺ Ulang</button></td></tr>`).join(""):`<tr><td colspan="11" style="text-align:center;opacity:.7">Belum ada hasil</td></tr>`);}
 function vDetail(k){T(async()=>{
  const [h]=await db.sel("hasil","kode=eq."+k+"&select=*,mapel(nama,kkm)"),L=await db.sel("jawaban","kode=eq."+k+"&select=pilih,benar,teks,soal(tanya,a,b,c,d,kunci,tipe)");
  const st=h.nilai>=kk(h)?"Tuntas":"Remedial";
  overlay(`<h1>${esc(h.nama)}</h1><div class="sub">${esc(h.mapel&&h.mapel.nama)} · Nilai <b>${h.nilai}</b> · <b class="${st==="Tuntas"?"st-t":"st-r"}">${st}</b> (KKM ${kk(h)})</div>
- <div class="sub l">${h.benar} benar dari ${h.total} soal${L.length<h.total?` · ${h.total-L.length} soal belum terjawab`:""}${h.keluar?` · <b style="color:var(--no)">keluar halaman ${h.keluar}×</b>`:""}${h.tambah?` · nyawa tambahan ${h.tambah}`:""}</div>
+ <div class="sub l">${h.benar} benar dari ${h.total} soal${L.length<h.total?` · ${h.total-L.length} soal belum terjawab`:""}${h.keluar?` · <b style="color:var(--no)">keluar halaman ${h.keluar}×</b>`:""}${h.tambah?` · nyawa tambahan ${h.tambah}`:""}${h.remedial?` · ulangan remedial (nilai awal ${h.nilai_awal})`:""}</div>
  ${L.sort((a,b)=>a.benar-b.benar).map(x=>{const so=x.soal||{},isi=so.tipe==="isian",o=[so.a,so.b,so.c,so.d];
   const js=isi?esc(x.teks||"(kosong)"):(x.pilih<0?"tidak menjawab":LET[x.pilih]+". "+esc(o[x.pilih])),kc=isi?esc((so.a||"").split("|")[0].trim()):(LET[so.kunci]+". "+esc(o[so.kunci]));
   return `<div class="it" style="align-items:flex-start"><span class="badge" style="${x.benar?"":"background:var(--no)"}">${x.benar?"✔":"✖"}</span><span style="flex:1;font-size:13px">${esc(so.tanya)}<br><small>Jawaban siswa: <b>${js}</b>${x.benar?"":` · Kunci: <b>${kc}</b>`}</small></span></div>`;}).join("")}
- <div class="ctr"><button class="m" style="background:#c2410c" onclick="ulangToken('${esc(k)}')">↺ Izinkan mengulang</button><button class="m s" onclick="resetHasil('${esc(k)}')">🗑️ Reset &amp; hapus nilai</button></div>
+ <div class="ctr"><button class="m" style="background:#c2410c" onclick="ulangToken('${esc(k)}')">↺ Izinkan mengulang</button><button class="m s" onclick="remedialSatu('${esc(k)}')">🎯 Remedial (soal salah)</button><button class="m s" onclick="resetHasil('${esc(k)}')">🗑️ Reset &amp; hapus nilai</button></div>
  <div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);
 });}
 function expCSV(){const q=v=>'"'+String(v).replace(/"/g,'""')+'"';dl("hasil.csv",new Blob(["\ufeff"+[HEAD,...rowsX()].map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"}));}
@@ -543,8 +552,8 @@ function vBackup(){overlay(`<h1>💾 Cadangan</h1><div class="sub">Simpan semua 
  <div class="ctr"><button class="s m" onclick="X(rs)">Pulihkan</button></div><div class="ctr"><button class="s" onclick="adm()">← Dasbor</button></div>`);}
 function resetKode(){const k=$("d_r").value.trim().toUpperCase();if(!k)return;
  T(async()=>{if(!(await db.sel("token","kode=eq."+k+"&select=kode")).length)return alert("Token tidak ditemukan.");
- await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});alert("Token "+k+" direset.");adm();});}
-async function ulangKode(ks){for(let n=0;n<ks.length;n+=40){const L="("+ks.slice(n,n+40).join(",")+")";await db.del("jawaban","kode=in."+L);await db.upd("token","kode=in."+L,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});}}
+ await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0,remedial_soal:null});alert("Token "+k+" direset.");adm();});}
+async function ulangKode(ks){for(let n=0;n<ks.length;n+=40){const L="("+ks.slice(n,n+40).join(",")+")";await db.del("jawaban","kode=in."+L);await db.upd("token","kode=in."+L,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0,remedial_soal:null});}}
 function ulangToken(k){const x=DATA.h.find(h=>h.kode===k)||{};
  if(confirm("Izinkan "+(x.nama||k)+" mengulang? Jawaban sebelumnya dihapus, tetapi nilai lama tetap tersimpan sampai siswa menyelesaikan ulangan baru."))
   T(async()=>{await ulangKode([k]);adm();});}
@@ -553,8 +562,8 @@ function ulangSemua(){const R=rowsF();if(!R.length)return alert("Tidak ada siswa
   T(async()=>{await ulangKode(R.map(x=>x.kode));alert(R.length+" siswa bisa mengulang.");adm();});}
 function resetHasil(k){const x=DATA.h.find(h=>h.kode===k)||{};
  if(confirm("Reset token milik "+(x.nama||k)+"? Nilai dan jawabannya dihapus, lalu siswa bisa mengerjakan ulang."))
-  T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});adm();});}
-function doReset(k){if(confirm("Reset agar siswa ini bisa mengulang?"))T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0});adm();});}
+  T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0,remedial_soal:null});adm();});}
+function doReset(k){if(confirm("Reset agar siswa ini bisa mengulang?"))T(async()=>{await db.del("jawaban","kode=eq."+k);await db.del("hasil","kode=eq."+k);await db.upd("token","kode=eq."+k,{dipakai:false,selesai:false,nama:null,jumlah:0,urutan:null,terjawab:0,keluar:0,remedial_soal:null});adm();});}
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 /* ===== Efek suara/getar, karakter, anti-curang, soal isian ===== */
 let SUARA=(()=>{try{return localStorage.getItem("suara")!=="0";}catch(e){return true;}})();
@@ -577,10 +586,10 @@ async function kirimIsian(){
  lock=true;res=-2;resKey=null;let r;
  try{
   if(PV){const ak=(SOAL[i].a||"").split("|").map(x=>x.trim().toLowerCase().replace(/\s+/g," "));r={benar:ak.includes(t.toLowerCase().replace(/\s+/g," ")),kunci:(SOAL[i].a||"").split("|")[0].trim(),penjelasan:SOAL[i].penjelasan};}
-  else r=await rpc("cek_isian",{p_kode:S.kode,p_soal:SOAL[i].id,p_teks:t});
+  else if(LT)r=await rpcR("latihan_cek_isian",{p_soal:SOAL[i].id,p_teks:t});else r=await rpcR("cek_isian",{p_kode:S.kode,p_soal:SOAL[i].id,p_teks:t});
  }catch(e){$("m").textContent="Koneksi bermasalah, mencoba lagi...";setTimeout(()=>lock=false,1500);return;}
  if(r.benar){correct++;got+=SOAL[i].bobot||1;$("m").style.color="var(--ok)";$("m").textContent="✅ Benar! Hebat!";bunyi(true);}
- else{lives--;$("m").style.color="var(--no)";$("m").textContent="❌ Kurang tepat. Jawaban: "+r.kunci;bunyi(false);}
+ else{lives--;LOST++;$("m").style.color="var(--no)";$("m").textContent="❌ Kurang tepat. Jawaban: "+r.kunci;bunyi(false);}
  hud();
  if(!r.benar&&r.penjelasan){$("pj").innerHTML="<b>💡 Pembahasan:</b> "+esc(r.penjelasan)+'<div class="ctr"><button onclick="nextQ()">Lanjut ▶</button></div>';$("pj").style.display="block";return;}
  setTimeout(nextQ,1500);
@@ -591,8 +600,8 @@ const canTask=()=>!!(TG.aktif&&lives!==Infinity&&TG.tambah<TG.maks&&TG.tersedia>
 const normT=t=>(t||"").trim().toLowerCase().replace(/\s+/g," ");
 async function apiTugas(op,x){
  if(!PV){
-  if(op==="ambil")return await rpc("ambil_tugas",{p_kode:S.kode});
-  return await rpc("cek_tugas",{p_kode:S.kode,p_soal:TUGAS.id,p_pilih:x.pilih==null?-1:x.pilih,p_teks:x.teks||null});
+  if(op==="ambil")return await rpcR("ambil_tugas",{p_kode:S.kode});
+  return await rpcR("cek_tugas",{p_kode:S.kode,p_soal:TUGAS.id,p_pilih:x.pilih==null?-1:x.pilih,p_teks:x.teks||null});
  }
  if(op==="ambil"){
   const sisa=PVT.filter(t=>!PVU.has(t.id));
@@ -644,6 +653,66 @@ function tawarTugas(){
  overlay(`<div class="ctr"><div style="font-size:52px">💔</div><h1>Nyawa habis!</h1><p style="font-size:14px">Kerjakan tugas dulu untuk menambah nyawa, lalu lanjut mengerjakan. Tugas tersisa: ${TG.tersedia}.</p>
  <button onclick="window._tbusy=false;bukaTugas('tawar')">📝 Kerjakan tugas</button><br><button class="s m" onclick="$('ov').style.display='none';finish()">Selesai saja</button></div>`);
 }
+/* ===== Keandalan, latihan, tema, lencana, remedial ===== */
+let LT=null,TEMA="kelas",LOST=0,REM=false;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function showNet(b){const e=$("net");if(e)e.style.display=b?"block":"none";}
+addEventListener("offline",()=>showNet(true));addEventListener("online",()=>showNet(false));
+async function rpcR(f,a,n){n=n==null?5:n;let er;
+ for(let t=0;t<=n;t++){try{const r=await rpc(f,a);showNet(false);return r;}catch(e){er=e;if(!(e instanceof TypeError))throw e;showNet(true);await sleep(1200*(t+1));}}
+ throw er;}
+const pvBanner=(t,f)=>{$("pvb").innerHTML=t+` <button onclick="${f}" style="border:0;border-radius:8px;padding:4px 10px;font-weight:700">Keluar</button>`;};
+/* --- Mode latihan --- */
+async function latihan(){
+ const k=(($("t_c")&&$("t_c").value)||KODEK||"").trim().toUpperCase();
+ if(!k)return home("Isi kode kelas dulu untuk masuk mode latihan.");
+ KODEK=k;busy("Memuat...");
+ try{
+  const d=await rpc("latihan_daftar",{p_kelas:k});if(d.galat)return home(d.galat);
+  overlay(`<h1>🏋️ Latihan</h1><div class="sub">${esc(d.nama)} · boleh diulang, tidak dinilai</div>
+  ${d.mapel.length?d.mapel.map(m=>`<div class="it"><span><b>${esc(m.nama)}</b><br><small>${m.jumlah} soal</small></span><button class="m" onclick="latMulai('${m.id}')">Mulai</button></div>`).join(""):'<div class="sub" style="margin:14px 0">Belum ada mapel yang dibuka untuk latihan.</div>'}
+  <div class="ctr"><button class="s" onclick="home()">← Kembali</button></div>`);
+ }catch(e){home(e.message);}
+}
+async function latMulai(id){
+ ac();busy("Memuat soal...");
+ try{
+  const d=await rpc("latihan_mulai",{p_kelas:KODEK,p_mapel:id});if(d.galat)return home(d.galat);
+  LT={id};PV=null;ACT=false;S={kode:"LATIHAN",mapel:d.mapel,nama:"Latihan"};TEMA=d.tema||"kelas";TG={aktif:false,maks:0,tambah:0,tersedia:0};
+  SOAL=d.soal;TOT=SOAL.length||1;got=0;i=0;correct=0;lives=Infinity;LOST=0;REM=false;
+  pvBanner("🏋️ Mode latihan: tidak dinilai","endLat()");$("pvb").style.display="flex";$("ov").style.display="none";load();
+ }catch(e){home(e.message);}
+}
+function endLat(){LT=null;lock=true;$("pvb").style.display="none";home();}
+/* --- Tema arena --- */
+const TEMAS={kelas:{a:"#f6e8c8",b:"#f0dcb3",bar:"#8a6a52",d:"tree"},hutan:{a:"#d9f2c9",b:"#c5e8b0",bar:"#2f6b2f",d:"tree2"},lab:{a:"#e6f4fb",b:"#d2ebf7",bar:"#0e5a7a",d:"flask"},pantai:{a:"#fdf0c4",b:"#f9e3a0",bar:"#0b84a5",d:"umbrella"},angkasa:{a:"#2a2766",b:"#332f7a",bar:"#171442",d:"planet"}};
+const TM=()=>TEMAS[TEMA]||TEMAS.kelas;
+function deko(x,y){const d=TM().d;
+ if(d==="tree")tree(x,y);
+ else if(d==="tree2"){g.fillStyle="#5b3a1a";g.fillRect(x-3,y,6,14);g.fillStyle="#166534";g.beginPath();g.arc(x,y-4,13,0,7);g.fill();g.fillStyle="#15803d";g.beginPath();g.arc(x+4,y-1,7,0,7);g.fill();}
+ else if(d==="flask"){g.fillStyle="#cbd5e1";g.fillRect(x-3,y-8,6,8);g.fillStyle="#7dd3fc";g.fillRect(x-7,y,14,12);g.fillStyle="#38bdf8";g.fillRect(x-7,y+6,14,6);}
+ else if(d==="umbrella"){g.fillStyle="#7a4a21";g.fillRect(x-1,y-2,3,16);g.fillStyle="#ef4444";g.beginPath();g.arc(x,y-2,12,Math.PI,0);g.fill();g.fillStyle="#fff";g.fillRect(x-4,y-12,4,10);}
+ else{g.fillStyle="#f59e0b";g.beginPath();g.arc(x,y+4,9,0,7);g.fill();g.fillStyle="#fde68a";g.fillRect(x-14,y+3,28,2);}}
+/* --- Lencana (tanpa menampilkan angka) --- */
+const BADGES={tamat:["🏁","Sampai Akhir","Menyelesaikan semua soal"],fokus:["🧘","Fokus","Selesai tanpa meninggalkan halaman"],tekun:["💪","Pantang Menyerah","Terus maju meski sempat salah"],tugas:["🎁","Pemburu Tugas","Berhasil mengerjakan tugas nyawa"],bangkit:["🔥","Bangkit","Menyelesaikan ulangan remedial"]};
+function hitungLencana(){
+ const tamat=lives>0&&i>=SOAL.length,b=[];
+ if(tamat)b.push("tamat");if(tamat&&KEL===0)b.push("fokus");if(tamat&&LOST>0)b.push("tekun");if(TG.tambah>0)b.push("tugas");if(tamat&&REM)b.push("bangkit");
+ try{const st=new Set(JSON.parse(localStorage.getItem("lencana")||"[]"));b.forEach(x=>st.add(x));localStorage.setItem("lencana",JSON.stringify([...st]));}catch(e){}
+ return b;}
+function lencanaRow(){let a=[];try{a=JSON.parse(localStorage.getItem("lencana")||"[]");}catch(e){}a=a.filter(k=>BADGES[k]);
+ return a.length?`<div class="sub" style="margin-top:6px">🏅 Lencanamu: ${a.map(k=>`<span title="${BADGES[k][1]}">${BADGES[k][0]}</span>`).join(" ")}</div>`:"";}
+/* --- Guru: info cadangan + remedial otomatis --- */
+function bkInfo(){let t=0;try{t=+localStorage.getItem("bk_"+KL)||0;}catch(e){}
+ const h=t?Math.floor((Date.now()-t)/864e5):-1;
+ return `<div class="sub" style="${h<0||h>7?"color:#c2410c;font-weight:700":""}">💾 Cadangan terakhir: ${h<0?"belum pernah. Unduh lewat tombol Cadangan":h===0?"hari ini":h+" hari lalu"}${h>7?" (sebaiknya cadangkan lagi)":""}</div>`;}
+function remedialOto(){const R=rowsF().filter(x=>x.nilai<kk(x));
+ if(!R.length)return alert("Tidak ada siswa remedial pada daftar yang tampil. Pilih mapel atau filter Remedial dulu.");
+ if(confirm("Buat ulangan remedial untuk "+R.length+" siswa? Mereka hanya mengerjakan soal yang belum benar. Jawaban lama dihapus, nilai awal tetap dicatat."))
+  T(async()=>{let n=0;const ks=R.map(x=>x.kode);for(let a=0;a<ks.length;a+=40)n+=await rpc("buat_remedial",{p_kodes:ks.slice(a,a+40)});alert(n+" siswa mendapat ulangan remedial.");adm();});}
+function remedialSatu(k){
+ if(confirm("Buat ulangan remedial untuk siswa ini? Ia hanya mengerjakan soal yang belum benar."))
+  T(async()=>{const n=await rpc("buat_remedial",{p_kodes:[k]});alert(n?"Ulangan remedial siap. Siswa bisa membuka lagi dengan token yang sama.":"Tidak ada soal salah, remedial tidak diperlukan.");adm();});}
 /* ===== Kelas: banyak kelas dengan kode kelas ===== */
 let KL=null,KLO=null;
 const rcode=()=>Array.from(crypto.getRandomValues(new Uint8Array(6)),x=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x%32]).join("");
@@ -678,7 +747,7 @@ async function bk(){
  o.mapel=await all("mapel","select=*"+k+"&order=created_at");
  o.siswa=await all("siswa","select=*"+k+"&order=nama");
  for(const t of["soal","token","hasil"])o[t]=(await all(t,"select=*,mapel!inner(kelas_id)&mapel.kelas_id=eq."+KL+"&order="+(t==="token"?"kode":"created_at"))).map(({mapel,...r})=>r);
- dl("cadangan-"+((KLO&&KLO.nama)||"kelas").replace(/[^A-Za-z0-9]+/g,"-")+"-"+o.tgl.slice(0,10)+".json",new Blob([JSON.stringify(o)],{type:"application/json"}));}
+ dl("cadangan-"+((KLO&&KLO.nama)||"kelas").replace(/[^A-Za-z0-9]+/g,"-")+"-"+o.tgl.slice(0,10)+".json",new Blob([JSON.stringify(o)],{type:"application/json"}));try{localStorage.setItem("bk_"+KL,Date.now());}catch(e){}}
 async function rs(){const f=$("b_f").files[0];if(!f)return alert("Pilih file cadangan dulu.");
  if(!confirm("Pulihkan data dari file ini? Data dengan ID yang sama akan ditimpa."))return;
  const o=JSON.parse(await f.text());
